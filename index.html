@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Star Scavenger</title>
+<style>
+  html, body {
+    margin: 0; height: 100%; background: #05060a;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  canvas { image-rendering: pixelated; display: block; }
+  #error {
+    display: none; position: fixed; inset: 0; padding: 24px;
+    background: #2a0b12; color: #ffb3c0; font-size: 14px;
+    line-height: 1.6; white-space: pre-wrap; overflow: auto; z-index: 10;
+  }
+  #error b { color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- The error net is installed BEFORE any other script. A script that fails to
+     parse never runs a single one of its own lines, so a handler living inside
+     game.js is exactly the handler that is missing when game.js is what broke. -->
+<script>
+  window.__showError = function (message, source) {
+    var box = document.getElementById('error');
+    if (!box) return;
+    var hint = '';
+    if (location.protocol === 'file:') {
+      hint = '\n\nYou opened this file directly, so the browser hides the real ' +
+             'message.\nDouble-click serve.command and try again, or press ' +
+             'Cmd-Option-J to see it in the console.';
+    }
+    box.innerHTML = '<b>The game stopped. Here is why:</b>\n\n' +
+      String(message).replace(/[<&]/g, function (c) { return c === '<' ? '&lt;' : '&amp;'; }) +
+      (source ? '\n\nin ' + source : '') + hint;
+    box.style.display = 'block';
+  };
+  window.addEventListener('error', function (e) {
+    window.__showError(e.message || 'Unknown error', (e.filename || '').split('/').pop());
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    window.__showError('Unhandled promise rejection: ' + (e.reason && e.reason.message || e.reason), '');
+  });
+</script>
+
+<div id="error"></div>
+<canvas id="game"></canvas>
+
+<script src="config.js"></script>
+<script src="sprites.js"></script>
+<script src="game.js"></script>
+<script>
+  // try/catch is the primary reporter: it keeps the real message and stack even
+  // when the page is on file://, where the window listener only gets
+  // "Script error." with no filename.
+  try {
+    Game.start(document.getElementById('game'));
+  } catch (e) {
+    window.__showError((e && e.stack) || String(e), 'game.js');
+  }
+</script>
+</body>
+</html>
