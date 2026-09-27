@@ -170,9 +170,24 @@ The error net is two layers. `try/catch` is primary because it keeps the real me
      parse never runs a single one of its own lines, so a handler living inside
      game.js is exactly the handler that is missing when game.js is what broke. -->
 <script>
+  window.__errorCount = 0;
   window.__showError = function (message, source) {
     var box = document.getElementById('error');
     if (!box) return;
+    window.__errorCount++;
+    // The FIRST error wins. A parse error in config.js does not stop sprites.js
+    // and game.js from loading, so Game.start() goes on to fail with a second,
+    // misleading error ("CONFIG is not defined", which blames game.js for a
+    // broken config.js). The first message is the root cause; later ones are
+    // only counted, and the console still has them all.
+    if (window.__errorCount > 1) {
+      var more = document.getElementById('more');
+      if (more) {
+        more.textContent = '\n\n(' + (window.__errorCount - 1) + ' later error' +
+          (window.__errorCount === 2 ? '' : 's') + ' followed this one — see the console)';
+      }
+      return;
+    }
     var hint = '';
     if (location.protocol === 'file:') {
       hint = '\n\nYou opened this file directly, so the browser hides the real ' +
@@ -181,7 +196,7 @@ The error net is two layers. `try/catch` is primary because it keeps the real me
     }
     box.innerHTML = '<b>The game stopped. Here is why:</b>\n\n' +
       String(message).replace(/[<&]/g, function (c) { return c === '<' ? '&lt;' : '&amp;'; }) +
-      (source ? '\n\nin ' + source : '') + hint;
+      (source ? '\n\nin ' + source : '') + hint + '<span id="more"></span>';
     box.style.display = 'block';
   };
   window.addEventListener('error', function (e) {
@@ -225,7 +240,7 @@ Expected: the red panel reads `TypeError: canvas.getContextTYPO is not a functio
 - [ ] **Step 9: Verify the error net catches a parse error**
 
 Temporarily append a lone `}` to the end of `config.js`, reload.
-Expected: the red panel reads `Uncaught SyntaxError: Unexpected token '}'` and names `config.js`. **Remove the stray brace.**
+Expected: the red panel reads `Uncaught SyntaxError: Unexpected token '}'` and names `config.js`, followed by a trailing `(1 later error followed this one — see the console)` note. **Remove the stray brace.**
 
 This step is the one that proves the design. If it shows `"Script error."`, the page is being served from `file://` — use the server.
 
