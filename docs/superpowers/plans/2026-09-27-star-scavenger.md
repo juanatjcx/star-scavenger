@@ -69,6 +69,8 @@ The safety net comes first, because every later task is debugged through it.
 
 ```
 .DS_Store
+.claude/
+.superpowers/
 ```
 
 - [ ] **Step 2: Create `serve.command` and make it executable**
@@ -78,9 +80,37 @@ The safety net comes first, because every later task is debugged through it.
 # Double-click this file to play. It serves the folder on port 8000 so that
 # error messages show up properly, then opens the game in your browser.
 cd "$(dirname "$0")" || exit 1
+
+# If the game is already being served (you ran this earlier), just open it
+# rather than starting a second server that would fail.
+if curl -sf -o /dev/null http://localhost:8000/index.html; then
+  echo "Already serving on http://localhost:8000/ — opening the game."
+  open http://localhost:8000/index.html
+  exit 0
+fi
+
 python3 -m http.server 8000 &
 SERVER_PID=$!
-until curl -sf -o /dev/null http://localhost:8000/index.html; do sleep 0.2; done
+
+# Wait up to five seconds for the server to answer, then give up and say why.
+# Without a limit, a busy port would leave this window hanging silently.
+for _ in $(seq 1 25); do
+  curl -sf -o /dev/null http://localhost:8000/index.html && break
+  sleep 0.2
+done
+
+if ! curl -sf -o /dev/null http://localhost:8000/index.html; then
+  echo ""
+  echo "Could not start the server on port 8000."
+  echo "Something else is probably using that port. Close any other Terminal"
+  echo "window running this file, then try again."
+  echo ""
+  echo "Press Return to close this window."
+  read -r
+  kill $SERVER_PID 2>/dev/null
+  exit 1
+fi
+
 open http://localhost:8000/index.html
 echo "Serving on http://localhost:8000/  — close this window to stop."
 wait $SERVER_PID
