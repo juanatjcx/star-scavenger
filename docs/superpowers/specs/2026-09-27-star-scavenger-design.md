@@ -19,13 +19,16 @@ of what a first-time coder can read and predict, even when that costs polish.
 1. Every **tier-1** cheat-sheet tweak is one number in `config.js`, visible in under a
    minute, without opening `game.js`. Tier-2 tweaks (the three paste-ready features) do
    edit `game.js`, and the cheat-sheet labels them as such.
-2. The game runs by double-clicking `index.html` — no install, no server, no build step.
+2. Class runs off a **local HTTP server started by double-clicking `serve.command`** — no
+   install, no build step, no typing. Opening `index.html` directly still plays the game as
+   a fallback, but only the server gets criterion 5 fully working.
 3. A phone can play it from a public URL, with the same arena, difficulty curve and top
    speed as desktop. Control *feel* differs by necessity; reachable score does not.
 4. A student can point at a line of `config.js` and correctly say what it does.
-5. A broken live edit produces a readable message on screen, never a black screen — with
-   one measured exception: from `file://`, parse errors reach the page only as
-   `"Script error."`, so the banner tells you to open the console. See §6 and §11.
+5. A broken live edit produces a readable message on screen, never a black screen. This
+   holds on the class setup (local server) and on GitHub Pages. On the `file://` fallback,
+   parse errors arrive as `"Script error."` and the banner says to open the console
+   instead. See §6 and §11.
 
 ### Non-goals
 
@@ -64,9 +67,17 @@ additive changes later.
 
 ### Structure: four files, classic script tags
 
-No ES modules, so the game runs from `file://` with no local server — this matters on a
-locked-down school laptop. Top-level `const` in classic scripts shares one global lexical
-scope, so `config.js` → `sprites.js` → `game.js` load in order and see each other.
+Classic scripts, not ES modules. The original reason was that `file://` forbids modules,
+and since the class now runs on a local server (§8) that reason no longer decides it — so
+the honest remaining reasons are: `config.js` needs no `export` line and `game.js` needs no
+`import` line, which is ceremony a first-timer would have to be told to ignore; and the
+`file://` fallback keeps working for a student who just downloads the folder. Top-level
+`const` in classic scripts shares one global lexical scope, so `config.js` →
+`sprites.js` → `game.js` load in order and see each other (§11).
+
+The cost of that shared scope is a real classroom trap: pasting a `config.js` line into
+`game.js` produces `Identifier 'CONFIG' has already been declared`, which goes on the
+cheat-sheet.
 
 ## 3. Game rules
 
@@ -140,6 +151,7 @@ the cheat-sheet as changes you make *in front of them*, not in the base game.
 | `sprites.js` | The colour palette and the ASCII art for ship, crystal, three asteroid sizes, and heart. |
 | `game.js` | Loop, state, entities, collision, input, drawing. Exposes `Game.start(canvas)` plus `Game.pure`, the pure helpers that `tests.html` asserts against. |
 | `tests.html` | Dependency-free assertions over the pure helpers. Open it, see green or red. |
+| `serve.command` | Double-click to start a local server and open the game (§8). |
 | `README.md` | What it is, how to run it, the play URL. |
 | `TEACHING.md` | The cheat-sheet, the smoke checklist, and troubleshooting. |
 
@@ -238,12 +250,23 @@ Everything else is verified by playing it: a 10-item smoke checklist in `TEACHIN
 drag, high score persists, window resize), plus a real Chrome run at 1280×800 and 390×844
 with screenshots before the work is called done.
 
-## 8. Deployment
+## 8. Running it and deploying it
 
-`git init -b main` in this folder, remote `git@github.com:juanatjcx/star-scavenger.git`
-(SSH, matching the existing `gh` configuration). GitHub Pages serves `main` at root,
-giving `https://juanatjcx.github.io/star-scavenger/`, which goes in the README. No
-Jekyll-escaping file is needed as no path starts with an underscore.
+**In class:** `serve.command`, a three-line executable shell script in the repo root that
+`cd`s to its own directory, starts `python3 -m http.server 8000`, and opens
+`http://localhost:8000/`. macOS runs a `.command` file in Terminal on double-click, so the
+teacher's setup is one double-click and the payoff is real error messages on screen.
+Python 3 is already present (3.14.7 on this machine); nothing is installed.
+
+**Fallback:** opening `index.html` directly still plays, with the degraded error reporting
+described in §6. The README covers both and says which one to prefer.
+
+**Deploy:** `git init -b main` in this folder, remote
+`git@github.com:juanatjcx/star-scavenger.git` (SSH, matching the existing `gh`
+configuration). GitHub Pages serves `main` at root, giving
+`https://juanatjcx.github.io/star-scavenger/` for the students' phones. Being `https`, it
+reports errors properly too. No Jekyll-escaping file is needed as no path starts with an
+underscore.
 
 The local folder stays `asteroid-game` while the repo is `star-scavenger`. Git does not
 care, the Pages URL follows the repo, and renaming the working directory mid-session buys
@@ -253,7 +276,8 @@ nothing; rename it whenever it becomes annoying.
 
 `TEACHING.md` is the artifact the class actually runs on:
 
-- A short opening script for the first 60 seconds of the lesson.
+- A short opening script for the first 60 seconds of the lesson, starting with
+  "double-click `serve.command`".
 - A table of roughly 15 tweaks in the form *student says* → *change this* → *what they
   will see*, ordered easiest first, most of them a single number in `config.js`.
 - Three paste-ready larger changes with the exact code: a shield power-up, a crystal
