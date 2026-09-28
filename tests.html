@@ -352,6 +352,43 @@ function runTests() {
   eq(P.clockStyle(3, 0, CONFIG).dx === P.clockStyle(3, 40, CONFIG).dx, false,
      'the shiver actually moves as time passes');
 
+  // Sound must never be able to take the game down.
+  var realAudioCtor = window.AudioContext;
+  var realWebkitAudioCtor = window.webkitAudioContext;
+  var savedAudio = Game._audio;
+  try {
+    window.AudioContext = undefined;
+    window.webkitAudioContext = undefined;
+    Game._audio = null;
+    var noAudioThrew = false;
+    try { Game._beep(440, 10); } catch (e) { noAudioThrew = true; }
+    eq(noAudioThrew, false, 'a browser with no sound support does not crash the game');
+
+    // A context that refuses to resume must not throw either.
+    window.AudioContext = function () {
+      return {
+        state: 'suspended',
+        currentTime: 0,
+        destination: {},
+        resume: function () { return Promise.reject(new Error('blocked')); },
+        createOscillator: function () {
+          return { type: '', frequency: { value: 0 }, connect: function () {}, start: function () {}, stop: function () {} };
+        },
+        createGain: function () {
+          return { gain: { value: 0, setValueAtTime: function () {}, exponentialRampToValueAtTime: function () {} }, connect: function () {} };
+        }
+      };
+    };
+    Game._audio = null;
+    var refusedThrew = false;
+    try { Game._beep(440, 10); } catch (e) { refusedThrew = true; }
+    eq(refusedThrew, false, 'a browser that refuses to start audio does not crash the game');
+  } finally {
+    window.AudioContext = realAudioCtor;
+    window.webkitAudioContext = realWebkitAudioCtor;
+    Game._audio = savedAudio;
+  }
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows

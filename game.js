@@ -384,7 +384,11 @@ const Game = {
         Game._audio = new Ctor();
       }
       const ac = Game._audio;
-      if (ac.state === 'suspended') ac.resume();
+      // resume() hands back a promise, and it is allowed to reject when the
+      // browser has not seen a good enough user gesture yet. Nothing useful can
+      // be done about that, but an unhandled rejection would reach the error
+      // panel and cover a working game, so swallow it deliberately.
+      if (ac.state === 'suspended') ac.resume().catch(function () {});
       const osc = ac.createOscillator();
       const gain = ac.createGain();
       osc.type = 'square';
