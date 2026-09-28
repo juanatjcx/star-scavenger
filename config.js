@@ -62,4 +62,19 @@ const CONFIG = {
 
   // ── Winning ──────────────────────────────────────────────────
   WIN_BONUS: 100,          // Extra points for lasting the whole run.
+
+  // ── The clock's nerves ───────────────────────────────────────
+  //  As time runs out the clock changes colour, shivers, jumps on
+  //  every tick, and finally starts beating like a heart.
+  CLOCK_URGENT_SECONDS: 15,     // When it starts getting nervous. Try 40.
+  CLOCK_CALM_COLOR: '#e8e8ff',  // Its colour with plenty of time left.
+  CLOCK_WARN_COLOR: '#ffc44d',  // Its colour halfway through the panic.
+  CLOCK_PANIC_COLOR: '#ff4d6d', // Its colour at zero.
+  CLOCK_TREMBLE_MAX: 3,         // How far it shivers at zero. 0 = rock steady.
+  CLOCK_TREMBLE_HZ: 11,         // How fast it shivers.
+  CLOCK_KICK_UNITS: 4,          // How far it jumps on each tick. 0 = no jump.
+  CLOCK_PULSE_SECONDS: 5,       // When the heartbeat starts.
+  CLOCK_PULSE_MAX: 1.25,        // How much it swells on each beat. 1 = no beat.
+  CLOCK_PULSE_HZ_START: 2,      // Beats per second when the heartbeat begins...
+  CLOCK_PULSE_HZ_END: 5,        // ...and by the time it reaches zero.
 };

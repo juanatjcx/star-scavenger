@@ -247,6 +247,58 @@ const Game = {
       }
       return { w: rows[0].length, h: rows.length, pixels: pixels };
     },
+
+    // Blend two "#rrggbb" colours. t=0 gives the first, t=1 the second.
+    mixColor: function (a, b, t) {
+      const f = Game.pure.clamp(t, 0, 1);
+      const pick = function (hex, i) { return parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16); };
+      const part = function (i) { return Math.round(Game.pure.lerp(pick(a, i), pick(b, i), f)); };
+      return 'rgb(' + part(0) + ', ' + part(1) + ', ' + part(2) + ')';
+    },
+
+    // How worried should the clock look? 0 while there is plenty of time,
+    // rising smoothly to 1 as it reaches zero.
+    clockUrgency: function (timeLeft, cfg) {
+      if (cfg.CLOCK_URGENT_SECONDS <= 0) return 0;
+      return 1 - Game.pure.clamp(timeLeft / cfg.CLOCK_URGENT_SECONDS, 0, 1);
+    },
+
+    // Everything about how the clock looks right now: its colour, how far it has
+    // wandered from home, and how much it has swelled. `now` is handed in rather
+    // than read from a clock in here, so the same inputs always give the same
+    // answer and the tests can check it.
+    clockStyle: function (timeLeft, now, cfg) {
+      const P = Game.pure;
+      const urgency = P.clockUrgency(timeLeft, cfg);
+      const seconds = now / 1000;
+
+      // Colour: calm to warn over the first half of the panic, warn to panic
+      // over the second half.
+      const color = urgency < 0.5
+        ? P.mixColor(cfg.CLOCK_CALM_COLOR, cfg.CLOCK_WARN_COLOR, urgency * 2)
+        : P.mixColor(cfg.CLOCK_WARN_COLOR, cfg.CLOCK_PANIC_COLOR, (urgency - 0.5) * 2);
+
+      // Shiver: two sine waves at different speeds, so it trembles instead of
+      // sliding along a line. Perfectly still while urgency is 0.
+      const amp = cfg.CLOCK_TREMBLE_MAX * urgency;
+      const dx = Math.sin(seconds * cfg.CLOCK_TREMBLE_HZ * Math.PI * 2) * amp;
+      const dy = Math.cos(seconds * cfg.CLOCK_TREMBLE_HZ * 1.37 * Math.PI * 2) * amp;
+
+      // Jump: a nudge at the top of each second that fades before the next one.
+      const intoSecond = timeLeft - Math.floor(timeLeft);
+      const kick = cfg.CLOCK_KICK_UNITS * urgency * Math.max(0, 1 - intoSecond * 5);
+
+      // Heartbeat: only in the last few seconds, and it quickens as it goes.
+      let scale = 1;
+      if (cfg.CLOCK_PULSE_SECONDS > 0 && timeLeft <= cfg.CLOCK_PULSE_SECONDS) {
+        const into = P.clamp(1 - timeLeft / cfg.CLOCK_PULSE_SECONDS, 0, 1);
+        const hz = P.lerp(cfg.CLOCK_PULSE_HZ_START, cfg.CLOCK_PULSE_HZ_END, into);
+        const beat = (Math.sin(seconds * hz * Math.PI * 2) + 1) / 2;
+        scale = P.lerp(1, cfg.CLOCK_PULSE_MAX, beat);
+      }
+
+      return { color: color, dx: dx, dy: dy + kick, scale: scale };
+    },
   },
 
   _cache: Object.create(null),
@@ -464,7 +516,7 @@ const Game = {
       }
     }
 
-    function draw() {
+    function draw(now) {
       // A hit kicks the whole frame, not just the ship — otherwise the
       // starfield would sit still while the foreground shook, which looks
       // wrong. One setTransform call governs everything drawn below it.
@@ -503,11 +555,19 @@ const Game = {
       ctx.textAlign = 'right';
       ctx.fillText('BEST ' + state.highScore, CONFIG.ARENA - 6, 13);
 
-      // The clock is the biggest thing on screen, and it turns red at the end.
+      // The clock. While you are playing it gets more agitated as time runs
+      // out; on the title and end screens it just sits still.
+      const clock = state.phase === 'playing'
+        ? P.clockStyle(state.timeLeft, now, CONFIG)
+        : { color: CONFIG.CLOCK_CALM_COLOR, dx: 0, dy: 0, scale: 1 };
+      ctx.save();
+      ctx.translate(CONFIG.ARENA / 2 + clock.dx, 26 + clock.dy);
+      ctx.scale(clock.scale, clock.scale);
       ctx.textAlign = 'center';
       ctx.font = '22px monospace';
-      ctx.fillStyle = state.timeLeft <= 10 ? '#ff4d6d' : '#e8e8ff';
-      ctx.fillText(P.formatTime(state.timeLeft), CONFIG.ARENA / 2, 26);
+      ctx.fillStyle = clock.color;
+      ctx.fillText(P.formatTime(state.timeLeft), 0, 0);
+      ctx.restore();
 
       for (let i = 0; i < state.lives; i++) {
         Game._drawSprite(ctx, 'heart', 12 + i * 10, CONFIG.ARENA - 12, 0);
@@ -597,7 +657,7 @@ const Game = {
             Game._saveHighScore(state.score);
           }
         }
-        draw();
+        draw(now);
       } catch (e) {
         window.__showError((e && e.stack) || String(e), 'game.js');
         return;   // stop the loop instead of throwing 60 errors a second

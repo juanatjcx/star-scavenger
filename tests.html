@@ -326,6 +326,32 @@ function runTests() {
     localStorage.getItem = realGetItem;
   }
 
+  // ── the clock's nerves ──
+  eq(P.clockUrgency(60, CONFIG), 0, 'the clock is calm when there is plenty of time');
+  eq(P.clockUrgency(0, CONFIG), 1, 'and at full panic when the time is gone');
+  near(P.clockUrgency(CONFIG.CLOCK_URGENT_SECONDS / 2, CONFIG), 0.5,
+       'and half worried halfway through the panic');
+  eq(P.clockUrgency(CONFIG.CLOCK_URGENT_SECONDS, CONFIG), 0,
+     'the panic starts exactly at CLOCK_URGENT_SECONDS');
+
+  eq(P.mixColor('#000000', '#ffffff', 0.5), 'rgb(128, 128, 128)', 'mixColor blends evenly');
+  eq(P.mixColor('#ff0000', '#00ff00', 0), 'rgb(255, 0, 0)', 'mixColor at 0 gives the first colour');
+  eq(P.mixColor('#ff0000', '#00ff00', 1), 'rgb(0, 255, 0)', 'mixColor at 1 gives the second colour');
+
+  eq(P.clockStyle(60, 0, CONFIG).dx, 0, 'the clock does not shiver while there is time left');
+  eq(P.clockStyle(60, 0, CONFIG).dy, 0, 'and does not jump while there is time left');
+  eq(P.clockStyle(60, 1234, CONFIG).scale, 1, 'and does not beat while there is time left');
+  eq(P.clockStyle(CONFIG.CLOCK_PULSE_SECONDS + 1, 500, CONFIG).scale, 1,
+     'the heartbeat stays off until the last few seconds');
+  eq(P.clockStyle(1, 500, CONFIG).scale >= 1, true,
+     'the heartbeat only ever makes the clock bigger, never smaller');
+  eq(P.clockStyle(1, 500, CONFIG).scale <= CONFIG.CLOCK_PULSE_MAX, true,
+     'and never swells past CLOCK_PULSE_MAX');
+  eq(P.clockStyle(60, 0, CONFIG).color === P.clockStyle(0, 0, CONFIG).color, false,
+     'the clock is a different colour at zero than at the start');
+  eq(P.clockStyle(3, 0, CONFIG).dx === P.clockStyle(3, 40, CONFIG).dx, false,
+     'the shiver actually moves as time passes');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows
