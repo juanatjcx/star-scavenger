@@ -76,10 +76,10 @@ function runTests() {
   near(d0.spawnInterval, 1.2, 'at 0s asteroids spawn every 1.2s');
   near(d0.speed, 60, 'at 0s asteroids move at 60 px/s');
   var d60 = P.difficultyAt(60, CONFIG);
-  near(d60.spawnInterval, 0.4, 'at 60s asteroids spawn every 0.4s');
+  near(d60.spawnInterval, 0.25, 'at 60s asteroids spawn every 0.25s');
   near(d60.speed, 140, 'at 60s asteroids move at 140 px/s');
   var d30 = P.difficultyAt(30, CONFIG);
-  near(d30.spawnInterval, 0.8, 'halfway through, the spawn interval is halfway');
+  near(d30.spawnInterval, 0.725, 'halfway through, the spawn interval is halfway');
   near(d30.speed, 100, 'halfway through, the speed is halfway');
   var dLate = P.difficultyAt(999, CONFIG);
   near(dLate.speed, 140, 'difficulty stops rising past the end of the run');

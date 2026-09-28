@@ -46,7 +46,7 @@ Ordered roughly easiest-to-read first.
 | "More crystals!" | `CRYSTALS_ON_SCREEN` | 5 → 30 | The screen fills with treasure. Safe well past this — see the note below the table. |
 | "Crystals worth more" | `CRYSTAL_POINTS` | 10 → 500 | Score explodes. |
 | "Make crystals easier to grab" | `CRYSTAL_RADIUS` | 5 → 12 | You don't have to be exact anymore. |
-| "Too many rocks" | `ASTEROID_SPAWN_INTERVAL_END` | 0.4 → 1.0 | The ending stops being frantic. |
+| "Too many rocks" | `ASTEROID_SPAWN_INTERVAL_END` | 0.25 → 1.0 | The ending stops being frantic. |
 | "Make it impossible" | `ASTEROID_SPAWN_INTERVAL_START` | 1.2 → 0.15 | A wall of rocks from second one — see the note below the table on why the tab doesn't freeze. |
 | "Rocks too fast" | `ASTEROID_SPEED_END` | 140 → 80 | Dodgeable again. |
 | "GIANT rocks" | `ASTEROID_SIZES` | `[12, 20, 28]` → `[28, 28, 28]` | Only boulders. |
@@ -77,7 +77,7 @@ watch, so the longer reasoning behind a few rows lives here instead.
 - **`ASTEROID_SPAWN_INTERVAL_START`** (the "make it impossible" row):
   `ASTEROID_MAX_ALIVE: 20` is why the tab doesn't freeze even at an extreme
   setting like 0.15 — it's a hard ceiling on how many rocks can exist at
-  once. Normal play peaks around 8, so 20 is a ceiling, not a target.
+  once. Normal play peaks around 13, so 20 is a ceiling, not a target.
 - **`ASTEROID_JITTER_DEG`** pushed the other way, toward 89, collapses a
   rock's inward speed to about 1.7% of normal. Assuming the *start-of-run*
   speed of 60 units/second (`ASTEROID_SPEED_START` — the slowest asteroids

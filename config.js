@@ -14,7 +14,7 @@ const CONFIG = {
 
   // ── Asteroids: how the game gets harder ──────────────────────
   ASTEROID_SPAWN_INTERVAL_START: 1.2,  // Seconds between rocks at the start.
-  ASTEROID_SPAWN_INTERVAL_END: 0.4,    // ...and by the final second. Lower = harder.
+  ASTEROID_SPAWN_INTERVAL_END: 0.25,   // ...and by the final second. Lower = harder.
   ASTEROID_SPEED_START: 60,            // How fast rocks fly at the start.
   ASTEROID_SPEED_END: 140,             // ...and at the end. Higher = harder.
 
@@ -45,7 +45,7 @@ const CONFIG = {
   ASTEROID_JITTER_DEG: 30,         // How crooked their paths are. 0 = straight lines.
   ASTEROID_SPIN_DEG: 90,           // How fast they tumble. Looks only.
   ASTEROID_MAX_ALIVE: 20,          // Hard ceiling. Stops a silly spawn rate freezing
-                                   // the browser. Normal play peaks near 8.
+                                   // the browser. Normal play peaks near 13.
   ASTEROID_MAX_LIFETIME: 20,       // Seconds before a stray rock is removed.
   ASTEROID_DESPAWN_MARGIN: 40,     // How far off screen they appear and disappear.
 
