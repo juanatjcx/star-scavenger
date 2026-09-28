@@ -116,6 +116,32 @@ function runTests() {
   P.scrollStars(two, 0.5, CONFIG);
   eq(two[0].y, 106, 'stars drift down at STAR_SCROLL_SPEED');
 
+  // ── parseSprite ──
+  var tiny = P.parseSprite(['.R.', 'RRR'], { R: '#ff0000' });
+  eq(tiny.w, 3, 'parseSprite reads the width from the first row');
+  eq(tiny.h, 2, 'parseSprite reads the height from the row count');
+  eq(tiny.pixels.length, 4, 'dots are transparent and produce no pixel');
+  eq(tiny.pixels[0], { x: 1, y: 0, color: '#ff0000' }, 'a letter becomes a coloured pixel at its own position');
+  var oops = P.parseSprite(['Z'], { R: '#ff0000' });
+  eq(oops.pixels[0].color, '#ff00ff', 'an unknown letter turns magenta instead of crashing');
+
+  // ── every real sprite is well formed ──
+  var names = ['ship', 'crystal', 'rock12', 'rock20', 'rock28', 'heart'];
+  for (var n = 0; n < names.length; n++) {
+    var sp = SPRITES[names[n]];
+    eq(!!sp, true, names[n] + ' exists in SPRITES');
+    var widths = {};
+    for (var r = 0; r < sp.length; r++) widths[sp[r].length] = true;
+    eq(Object.keys(widths).length, 1, names[n] + ' has rows that are all the same length');
+    var parsed = P.parseSprite(sp, PALETTE);
+    eq(parsed.pixels.length > 0, true, names[n] + ' draws at least one pixel');
+    var bad = parsed.pixels.filter(function (px) { return px.color === '#ff00ff'; });
+    eq(bad.length, 0, names[n] + ' uses only letters that exist in PALETTE');
+  }
+  eq(SPRITES.rock12.length, 12, 'rock12 is 12 rows tall, matching its name');
+  eq(SPRITES.rock20.length, 20, 'rock20 is 20 rows tall, matching its name');
+  eq(SPRITES.rock28.length, 28, 'rock28 is 28 rows tall, matching its name');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows

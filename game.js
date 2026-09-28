@@ -75,6 +75,58 @@ const Game = {
         if (stars[i].y >= cfg.ARENA) stars[i].y -= cfg.ARENA;
       }
     },
+
+    // Turn rows of letters into a list of coloured pixels.
+    parseSprite: function (rows, palette) {
+      const pixels = [];
+      for (let y = 0; y < rows.length; y++) {
+        for (let x = 0; x < rows[y].length; x++) {
+          const ch = rows[y][x];
+          if (ch === '.') continue;
+          // A letter that isn't in PALETTE becomes magenta, so a typo shows up
+          // as a bright pink block instead of stopping the game.
+          const color = palette[ch] || '#ff00ff';
+          pixels.push({ x: x, y: y, color: color });
+        }
+      }
+      return { w: rows[0].length, h: rows.length, pixels: pixels };
+    },
+  },
+
+  _cache: {},
+
+  // Draw a sprite once into its own little canvas, then reuse it every frame.
+  _spriteCanvas: function (name) {
+    if (Game._cache[name]) return Game._cache[name];
+    const rows = SPRITES[name];
+    if (!rows) throw new Error('There is no sprite called "' + name + '" in sprites.js');
+    const art = Game.pure.parseSprite(rows, PALETTE);
+    const c = document.createElement('canvas');
+    c.width = art.w;
+    c.height = art.h;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    for (let i = 0; i < art.pixels.length; i++) {
+      const px = art.pixels[i];
+      g.fillStyle = px.color;
+      g.fillRect(px.x, px.y, 1, 1);
+    }
+    Game._cache[name] = c;
+    return c;
+  },
+
+  _drawSprite: function (ctx, name, cx, cy, angle) {
+    const c = Game._spriteCanvas(name);
+    if (!angle) {
+      // Whole pixels only, or the art blurs.
+      ctx.drawImage(c, Math.round(cx - c.width / 2), Math.round(cy - c.height / 2));
+      return;
+    }
+    ctx.save();
+    ctx.translate(Math.round(cx), Math.round(cy));
+    ctx.rotate(angle);
+    ctx.drawImage(c, -c.width / 2, -c.height / 2);
+    ctx.restore();
   },
 
   start: function (canvas) {
@@ -112,6 +164,7 @@ const Game = {
       ctx.fillStyle = '#10131c';
       ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
       drawStars(ctx, state.stars);
+      Game._drawSprite(ctx, 'ship', CONFIG.ARENA / 2, CONFIG.ARENA / 2, 0);
       // Tasks 5-10 add ship, crystals, asteroids, particles, and HUD here.
     }
 
