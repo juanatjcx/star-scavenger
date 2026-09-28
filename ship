@@ -25,9 +25,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT" || exit 1
 
 LIVE_URL="https://juanatjcx.github.io/star-scavenger/"
-CONFIG_URL="${LIVE_URL}config.js"
 POLL_INTERVAL=5
 POLL_TIMEOUT=240   # measured deploys are ~70s; this leaves real headroom before giving up
+
+# The files GitHub Pages actually serves to a student's phone. README.md,
+# TEACHING.md, ship, serve.py, and .gitignore never reach a browser, so a
+# ship that only touches those has nothing to wait for — see step 4.
+PUBLISHED_FILES=(index.html config.js sprites.js game.js tests.html)
 
 DRY_RUN=0
 UNDO=0
@@ -134,23 +138,54 @@ fi
 # ---------------------------------------------------------------------------
 # Step 4: wait until the new version is actually being served. HTTP 200
 # alone isn't proof of that — GitHub Pages can keep answering 200 with the
-# OLD file while the new one is still propagating. Comparing the deployed
-# config.js byte-for-byte against the local one is what turns "a server
-# answered" into "the new version is live."
+# OLD file while the new one is still propagating.
+#
+# The push just created exactly one new commit (a normal commit, or the
+# revert commit from --undo). Diff that commit against its parent to find
+# which SERVED files it actually touched, and wait only on those — comparing
+# a file nobody changed (most often config.js, since that's what the old
+# version of this script always checked) proves nothing about whether the
+# real change is live, and can report LIVE before it is.
 # ---------------------------------------------------------------------------
+changed_published=()
+for f in "${PUBLISHED_FILES[@]}"; do
+  if ! git diff --quiet HEAD~1 HEAD -- "$f" 2>/dev/null; then
+    changed_published+=("$f")
+  fi
+done
+
+if [ "${#changed_published[@]}" -eq 0 ]; then
+  echo ""
+  echo "Pushed. Nothing that students can see changed, so there is nothing to wait for."
+  exit 0
+fi
+
 echo "Waiting for $LIVE_URL to catch up (usually about 70 seconds)..."
-local_config="$(cat config.js)"
+echo "Watching: ${changed_published[*]}"
 start=$SECONDS
+tmp="$(mktemp)"
 while (( SECONDS - start < POLL_TIMEOUT )); do
-  remote="$(curl -fsS "${CONFIG_URL}?_=$(date +%s%N)" 2>/dev/null)" || remote=""
-  if [ -n "$remote" ] && [ "$remote" = "$local_config" ]; then
+  all_match=1
+  for f in "${changed_published[@]}"; do
+    if ! curl -fsS "${LIVE_URL}${f}?_=$(date +%s%N)" -o "$tmp" 2>/dev/null; then
+      all_match=0
+      break
+    fi
+    if ! cmp -s "$tmp" "$f"; then
+      all_match=0
+      break
+    fi
+  done
+  if [ "$all_match" = 1 ]; then
     elapsed=$(( SECONDS - start ))
+    rm -f "$tmp"
     echo ""
-    echo "LIVE: $LIVE_URL  (${elapsed}s after push)"
+    echo "LIVE: $LIVE_URL  (${elapsed}s after push) — confirmed byte-for-byte: ${changed_published[*]}"
     exit 0
   fi
   sleep "$POLL_INTERVAL"
 done
+rm -f "$tmp"
 echo ""
-echo "Gave up after ${POLL_TIMEOUT}s — GitHub Pages may still be catching up on its own. Check $LIVE_URL yourself before telling the class it's ready."
+echo "Not live yet after ${POLL_TIMEOUT}s. The push succeeded — your work is safe — this is just GitHub Pages being slow. Check $LIVE_URL yourself before telling the class it's ready."
 exit 1

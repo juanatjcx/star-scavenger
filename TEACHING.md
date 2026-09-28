@@ -12,8 +12,7 @@ Jump to: [Before class](#before-class) · [Opening](#opening) ·
    stops the server.
 2. Open `config.js` in your editor, projected, at a font size the back row can
    read.
-3. Have `https://juanatjcx.github.io/star-scavenger/` on the board for phones
-   (once it's live — see the README).
+3. Have `https://juanatjcx.github.io/star-scavenger/` on the board for phones.
 4. Reload `http://localhost:8000/index.html` once yourself before anyone
    arrives, just to see a clean, error-free start. From here on, the page
    reloads itself within a second or two of you saving a file — you

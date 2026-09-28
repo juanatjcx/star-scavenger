@@ -3,9 +3,7 @@
 A 60-second pixel-art survival game. Collect crystals, dodge asteroids, stay alive.
 Built to be changed in front of a class: every number that matters is in `config.js`.
 
-**Play it:** https://juanatjcx.github.io/star-scavenger/ (the repository's GitHub
-Pages address — not live yet, so use "Running it on your own machine" below until
-it is).
+**Play it:** https://juanatjcx.github.io/star-scavenger/
 
 ## Running it on your own machine
 
