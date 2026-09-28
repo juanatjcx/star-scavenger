@@ -38,17 +38,103 @@ const Game = {
         speed: Game.pure.lerp(cfg.ASTEROID_SPEED_START, cfg.ASTEROID_SPEED_END, t),
       };
     },
+
+    // Work out how big to draw the arena. The BITMAP is always a whole-number
+    // multiple of the arena: with smoothing off, a fraction like x2.25 draws
+    // some pixels 2 wide and others 3, which makes the art look broken. The
+    // displayed size is then capped to the screen, so a phone narrower than the
+    // arena shows the whole playfield slightly smaller instead of losing its edges.
+    computeScale: function (viewW, viewH, arena, dpr) {
+      const shortest = Math.min(viewW, viewH);
+      const scale = Math.max(1, Math.floor(shortest / arena));
+      return {
+        scale: scale,
+        cssSize: Math.min(arena * scale, shortest),
+        pixelSize: arena * scale * (dpr || 1),
+      };
+    },
+
+    // Scatter STAR_COUNT stars across the arena. Brightness is 1-3.
+    makeStars: function (rng, cfg) {
+      const stars = [];
+      for (let i = 0; i < cfg.STAR_COUNT; i++) {
+        stars.push({
+          x: Math.floor(rng() * cfg.ARENA),
+          y: Math.floor(rng() * cfg.ARENA),
+          bright: 1 + Math.floor(rng() * 3),
+        });
+      }
+      return stars;
+    },
+
+    // Drift the stars downward, wrapping anything that scrolls past the
+    // bottom edge back to the top.
+    scrollStars: function (stars, dt, cfg) {
+      for (let i = 0; i < stars.length; i++) {
+        stars[i].y += cfg.STAR_SCROLL_SPEED * dt;
+        if (stars[i].y >= cfg.ARENA) stars[i].y -= cfg.ARENA;
+      }
+    },
   },
 
   start: function (canvas) {
     const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    canvas.width = CONFIG.ARENA;
-    canvas.height = CONFIG.ARENA;
-    ctx.fillStyle = '#10131c';
-    ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
-    ctx.fillStyle = '#e8e8ff';
-    ctx.font = '16px monospace';
-    ctx.fillText('STAR SCAVENGER', 120, 200);
+    const P = Game.pure;
+
+    const state = {
+      stars: P.makeStars(Math.random, CONFIG),
+      scale: 1,
+    };
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const fit = P.computeScale(window.innerWidth, window.innerHeight, CONFIG.ARENA, dpr);
+      canvas.width = fit.pixelSize;
+      canvas.height = fit.pixelSize;
+      canvas.style.width = fit.cssSize + 'px';
+      canvas.style.height = fit.cssSize + 'px';
+      state.scale = fit.scale * dpr;
+      ctx.imageSmoothingEnabled = false;
+    }
+
+    function drawStars(ctx, stars) {
+      const shades = ['#2c3350', '#4a5580', '#8e9ccc'];
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        ctx.fillStyle = shades[s.bright - 1];
+        ctx.fillRect(Math.floor(s.x), Math.floor(s.y), 1, 1);
+      }
+    }
+
+    function draw() {
+      ctx.setTransform(state.scale, 0, 0, state.scale, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#10131c';
+      ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
+      drawStars(ctx, state.stars);
+      // Tasks 5-10 add ship, crystals, asteroids, particles, and HUD here.
+    }
+
+    let last = performance.now();
+    function frame(now) {
+      // Clamp the frame delta. Anything longer than MAX_FRAME_SECONDS lets fast
+      // objects jump further than their own radius in one step, which means
+      // collisions get skipped entirely.
+      const dt = Math.min((now - last) / 1000, CONFIG.MAX_FRAME_SECONDS);
+      last = now;
+      try {
+        P.scrollStars(state.stars, dt, CONFIG);
+        // Tasks 5-9 add ship movement, spawning, and game-phase logic here.
+        draw();
+      } catch (e) {
+        window.__showError((e && e.stack) || String(e), 'game.js');
+        return;   // stop the loop instead of throwing 60 errors a second
+      }
+      requestAnimationFrame(frame);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    requestAnimationFrame(frame);
   },
 };
