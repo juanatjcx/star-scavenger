@@ -23,4 +23,8 @@ const CONFIG = {
   // ── Timing (don't change these without reading the comments) ─
   MAX_FRAME_SECONDS: 0.025,  // Longest step we allow. Bigger values let the
                              // ship pass straight through asteroids.
+
+  // ── Your ship ────────────────────────────────────────────────
+  SHIP_SPEED: 220,         // Units per second. Try 500 for chaos.
+  SHIP_RADIUS: 6,          // How big the ship's "hit zone" is. Smaller = easier.
 };

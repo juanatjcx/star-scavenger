@@ -76,6 +76,30 @@ const Game = {
       }
     },
 
+    // Stop diagonal movement being faster than straight movement. A vector
+    // shorter than 1 is left alone, which is how a nearby finger moves slowly.
+    normalizeAim: function (dx, dy) {
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len === 0) return { dx: 0, dy: 0 };
+      if (len <= 1) return { dx: dx, dy: dy };
+      return { dx: dx / len, dy: dy / len };
+    },
+
+    // Touch steering. The finger names a place; we ask to move towards it, but
+    // never faster than the keyboard could. Without this cap a flicked thumb
+    // would teleport the ship and a phone would outscore a desktop.
+    aimForTarget: function (ship, tx, ty, cfg, dt) {
+      const reach = cfg.SHIP_SPEED * dt;
+      if (reach === 0) return { dx: 0, dy: 0 };
+      return Game.pure.normalizeAim((tx - ship.x) / reach, (ty - ship.y) / reach);
+    },
+
+    stepShip: function (ship, aim, dt, cfg) {
+      const edge = cfg.SHIP_RADIUS;
+      ship.x = Game.pure.clamp(ship.x + aim.dx * cfg.SHIP_SPEED * dt, edge, cfg.ARENA - edge);
+      ship.y = Game.pure.clamp(ship.y + aim.dy * cfg.SHIP_SPEED * dt, edge, cfg.ARENA - edge);
+    },
+
     // Turn rows of letters into a list of coloured pixels.
     parseSprite: function (rows, palette) {
       const pixels = [];
@@ -151,7 +175,70 @@ const Game = {
     const state = {
       stars: P.makeStars(Math.random, CONFIG),
       scale: 1,
+      ship: { x: CONFIG.ARENA / 2, y: CONFIG.ARENA / 2 },
     };
+
+    // ── Input. Keyboard and touch both end up in here, so there is exactly
+    //    one place to look when the controls misbehave. ──
+    const input = { keys: {}, touch: null };
+
+    window.addEventListener('keydown', function (e) {
+      input.keys[e.key] = true;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].indexOf(e.key) >= 0) e.preventDefault();
+    });
+    window.addEventListener('keyup', function (e) { input.keys[e.key] = false; });
+    window.addEventListener('blur', function () { input.keys = {}; });
+
+    // Touch steering keeps the gap between finger and ship that existed when
+    // you first touched down, so the ship rides beside your thumb instead of
+    // hiding underneath it.
+    function toArena(touch) {
+      const box = canvas.getBoundingClientRect();
+      const unit = box.width / CONFIG.ARENA;
+      return { x: (touch.clientX - box.left) / unit, y: (touch.clientY - box.top) / unit };
+    }
+    canvas.addEventListener('touchstart', function (e) {
+      e.preventDefault();
+      // A drag is already steering — an extra thumb touching down must not
+      // hijack it. Only the very first touch point ever starts a drag.
+      if (input.touch) return;
+      const p = toArena(e.changedTouches[0]);
+      input.touch = { id: e.changedTouches[0].identifier, gx: state.ship.x - p.x, gy: state.ship.y - p.y, x: p.x, y: p.y };
+    }, { passive: false });
+    canvas.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      if (!input.touch) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        // Only the finger that started the drag steers. Extra fingers are ignored.
+        if (e.changedTouches[i].identifier !== input.touch.id) continue;
+        const p = toArena(e.changedTouches[i]);
+        input.touch.x = p.x;
+        input.touch.y = p.y;
+      }
+    }, { passive: false });
+    function endTouch(e) {
+      e.preventDefault();
+      if (!input.touch) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === input.touch.id) input.touch = null;
+      }
+    }
+    canvas.addEventListener('touchend', endTouch, { passive: false });
+    canvas.addEventListener('touchcancel', endTouch, { passive: false });
+
+    function currentAim(dt) {
+      if (input.touch) {
+        return Game.pure.aimForTarget(
+          state.ship, input.touch.x + input.touch.gx, input.touch.y + input.touch.gy, CONFIG, dt);
+      }
+      let dx = 0, dy = 0;
+      const k = input.keys;
+      if (k.ArrowLeft  || k.a || k.A) dx -= 1;
+      if (k.ArrowRight || k.d || k.D) dx += 1;
+      if (k.ArrowUp    || k.w || k.W) dy -= 1;
+      if (k.ArrowDown  || k.s || k.S) dy += 1;
+      return Game.pure.normalizeAim(dx, dy);
+    }
 
     function resize() {
       const dpr = window.devicePixelRatio || 1;
@@ -179,8 +266,8 @@ const Game = {
       ctx.fillStyle = '#10131c';
       ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
       drawStars(ctx, state.stars);
-      Game._drawSprite(ctx, 'ship', CONFIG.ARENA / 2, CONFIG.ARENA / 2, 0);
-      // Tasks 5-10 add ship, crystals, asteroids, particles, and HUD here.
+      Game._drawSprite(ctx, 'ship', state.ship.x, state.ship.y, 0);
+      // Tasks 6-10 add crystals, asteroids, particles, and HUD here.
     }
 
     let last = performance.now();
@@ -192,7 +279,8 @@ const Game = {
       last = now;
       try {
         P.scrollStars(state.stars, dt, CONFIG);
-        // Tasks 5-9 add ship movement, spawning, and game-phase logic here.
+        P.stepShip(state.ship, currentAim(dt), dt, CONFIG);
+        // Tasks 6-9 add spawning and game-phase logic here.
         draw();
       } catch (e) {
         window.__showError((e && e.stack) || String(e), 'game.js');

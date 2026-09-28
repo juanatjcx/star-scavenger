@@ -158,6 +158,35 @@ function runTests() {
   delete Game._cache.__ragged;
   delete Game._cache.__empty;
 
+  // ── normalizeAim ──
+  eq(P.normalizeAim(0, 0), { dx: 0, dy: 0 }, 'no keys held means no movement');
+  eq(P.normalizeAim(1, 0), { dx: 1, dy: 0 }, 'one direction is full speed');
+  var diag = P.normalizeAim(1, 1);
+  near(Math.sqrt(diag.dx * diag.dx + diag.dy * diag.dy), 1, 'a diagonal is not faster than a straight line');
+  near(diag.dx, 0.7071067811865475, 'a diagonal splits speed evenly');
+  var half = P.normalizeAim(0.3, 0.4);
+  near(Math.sqrt(half.dx * half.dx + half.dy * half.dy), 0.5, 'a short aim keeps its length — this is how touch goes slowly');
+
+  // ── aimForTarget (touch) ──
+  var shipAt = { x: 200, y: 200 };
+  var far = P.aimForTarget(shipAt, 400, 200, CONFIG, 1 / 60);
+  near(Math.sqrt(far.dx * far.dx + far.dy * far.dy), 1, 'a far-away finger asks for full speed, never more');
+  var close = P.aimForTarget(shipAt, 201, 200, CONFIG, 1 / 60);
+  eq(close.dx < 1, true, 'a finger almost on the ship asks for less than full speed');
+  eq(P.aimForTarget(shipAt, 200, 200, CONFIG, 1 / 60), { dx: 0, dy: 0 }, 'a finger exactly on the ship asks for nothing');
+
+  // ── stepShip ──
+  var sh = { x: 100, y: 100 };
+  P.stepShip(sh, { dx: 1, dy: 0 }, 1, CONFIG);
+  eq(sh.x, 100 + CONFIG.SHIP_SPEED, 'one second at full speed moves SHIP_SPEED units');
+  var edge = { x: 399, y: 200 };
+  P.stepShip(edge, { dx: 1, dy: 0 }, 1, CONFIG);
+  eq(edge.x, CONFIG.ARENA - CONFIG.SHIP_RADIUS, 'the ship stops at the right wall');
+  var edge2 = { x: 1, y: 1 };
+  P.stepShip(edge2, { dx: -1, dy: -1 }, 1, CONFIG);
+  eq(edge2.x, CONFIG.SHIP_RADIUS, 'the ship stops at the left wall');
+  eq(edge2.y, CONFIG.SHIP_RADIUS, 'the ship stops at the top wall');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows
