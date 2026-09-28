@@ -60,7 +60,8 @@ const Game = {
       };
     },
 
-    // Scatter STAR_COUNT stars across the arena. Brightness is 1-3.
+    // Scatter STAR_COUNT stars across the arena. Brightness runs from 1 to
+    // STAR_SHADES.length.
     makeStars: function (rng, cfg) {
       const stars = [];
       for (let i = 0; i < cfg.STAR_COUNT; i++) {
@@ -77,7 +78,12 @@ const Game = {
     // bottom edge back to the top.
     scrollStars: function (stars, dt, cfg) {
       for (let i = 0; i < stars.length; i++) {
-        stars[i].y = (stars[i].y + cfg.STAR_SCROLL_SPEED * dt) % cfg.ARENA;
+        // JavaScript's % keeps the sign of the dividend, so a negative
+        // STAR_SCROLL_SPEED alone would send y permanently negative and the
+        // star would never wrap back into view. Adding ARENA before the
+        // second % brings it back into [0, ARENA) either way.
+        const y = stars[i].y + cfg.STAR_SCROLL_SPEED * dt;
+        stars[i].y = ((y % cfg.ARENA) + cfg.ARENA) % cfg.ARENA;
       }
     },
 
@@ -331,6 +337,57 @@ const Game = {
       if (eventType !== 'keydown') return true;
       return phase === 'title' || key === 'Enter';
     },
+
+    // A deleted or mistyped line in config.js becomes `undefined`, not a
+    // crash: it multiplies into NaN, and canvas silently drops any draw call
+    // with a non-finite coordinate — a black screen with no error at all.
+    // Check every key game.js actually reads before anything below reads
+    // one, so a broken config always produces the readable red panel instead.
+    // Same pattern as the ragged-sprite-row check in Game._spriteCanvas.
+    validateConfig: function (cfg) {
+      const numericKeys = [
+        'ARENA', 'SURVIVE_SECONDS', 'RESTART_LOCKOUT_SECONDS',
+        'ASTEROID_SPAWN_INTERVAL_START', 'ASTEROID_SPAWN_INTERVAL_END',
+        'ASTEROID_SPEED_START', 'ASTEROID_SPEED_END',
+        'STAR_COUNT', 'STAR_SCROLL_SPEED',
+        'MAX_FRAME_SECONDS',
+        'SHIP_SPEED', 'SHIP_RADIUS',
+        'CRYSTALS_ON_SCREEN', 'CRYSTAL_POINTS', 'CRYSTAL_RADIUS',
+        'CRYSTAL_WALL_MARGIN', 'CRYSTAL_MIN_FROM_SHIP', 'CRYSTAL_MIN_FROM_CRYSTAL',
+        'SPAWN_TRIES',
+        'ASTEROID_RADIUS_FACTOR', 'ASTEROID_JITTER_DEG', 'ASTEROID_SPIN_DEG',
+        'ASTEROID_MAX_ALIVE', 'ASTEROID_MAX_LIFETIME', 'ASTEROID_DESPAWN_MARGIN',
+        'SHIP_LIVES', 'INVINCIBLE_SECONDS', 'BLINK_HZ',
+        'SHAKE_PIXELS', 'SHAKE_DECAY',
+        'PARTICLES_PER_COLLECT', 'PARTICLES_PER_HIT', 'PARTICLE_SPEED',
+        'PARTICLE_SPEED_MIN', 'PARTICLE_LIFE',
+        'WIN_BONUS',
+        'CLOCK_URGENT_SECONDS', 'CLOCK_TREMBLE_MAX', 'CLOCK_TREMBLE_HZ',
+        'CLOCK_KICK_UNITS', 'CLOCK_PULSE_SECONDS', 'CLOCK_PULSE_MAX',
+        'CLOCK_PULSE_HZ_START', 'CLOCK_PULSE_HZ_END',
+        'COLLECT_HZ', 'COLLECT_MS', 'HIT_HZ', 'HIT_MS', 'SOUND_VOLUME',
+      ];
+      const colorKeys = ['CLOCK_CALM_COLOR', 'CLOCK_WARN_COLOR', 'CLOCK_PANIC_COLOR', 'ARENA_COLOR'];
+      const arrayKeys = ['ASTEROID_SIZES', 'STAR_SHADES'];
+      for (let i = 0; i < numericKeys.length; i++) {
+        const k = numericKeys[i];
+        if (typeof cfg[k] !== 'number' || !Number.isFinite(cfg[k])) {
+          throw new Error('CONFIG.' + k + ' is missing or not a number. Check that line in config.js.');
+        }
+      }
+      for (let i = 0; i < colorKeys.length; i++) {
+        const k = colorKeys[i];
+        if (typeof cfg[k] !== 'string') {
+          throw new Error('CONFIG.' + k + ' is missing or not a string. Check that line in config.js.');
+        }
+      }
+      for (let i = 0; i < arrayKeys.length; i++) {
+        const k = arrayKeys[i];
+        if (!Array.isArray(cfg[k]) || cfg[k].length === 0) {
+          throw new Error('CONFIG.' + k + ' is missing or empty. Check that line in config.js.');
+        }
+      }
+    },
   },
 
   _cache: Object.create(null),
@@ -357,7 +414,7 @@ const Game = {
     if (Game._cache[name]) return Game._cache[name];
     const rows = SPRITES[name];
     if (!rows || !rows.length) {
-      throw new Error('The sprite "' + name + '" is missing or empty in sprites.js. Fix it in sprites.js.');
+      throw new Error('The sprite "' + name + '" is missing or empty. Fix it in sprites.js.');
     }
     // Every row must be the same number of characters. If one row is longer, the
     // extra pixels fall outside the sprite and vanish without any warning — the
@@ -442,8 +499,12 @@ const Game = {
   },
 
   start: function (canvas) {
-    const ctx = canvas.getContext('2d');
     const P = Game.pure;
+    // Before anything below reads a value out of CONFIG: catch a deleted or
+    // mistyped line here, loudly, instead of letting it become NaN.
+    P.validateConfig(CONFIG);
+
+    const ctx = canvas.getContext('2d');
 
     const state = {
       stars: P.makeStars(Math.random, CONFIG),
@@ -605,7 +666,7 @@ const Game = {
       }
       ctx.setTransform(state.scale, 0, 0, state.scale, ox * state.scale, oy * state.scale);
       ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = '#10131c';
+      ctx.fillStyle = CONFIG.ARENA_COLOR;
       ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
       drawStars(ctx, state.stars);
       for (let i = 0; i < state.crystals.length; i++) {
@@ -625,7 +686,7 @@ const Game = {
         ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
       }
       // ── HUD ──
-      ctx.fillStyle = '#e8e8ff';
+      ctx.fillStyle = CONFIG.CLOCK_CALM_COLOR;
       ctx.font = '10px monospace';
       ctx.textAlign = 'left';
       ctx.fillText('SCORE ' + state.score, 6, 13);
@@ -654,7 +715,7 @@ const Game = {
         ctx.fillStyle = 'rgba(5, 6, 10, 0.78)';
         ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#e8e8ff';
+        ctx.fillStyle = CONFIG.CLOCK_CALM_COLOR;
         ctx.font = '20px monospace';
         const headline = state.phase === 'title' ? 'STAR SCAVENGER'
                        : state.phase === 'won' ? 'YOU SURVIVED!' : 'GAME OVER';
@@ -691,7 +752,7 @@ const Game = {
             state.score += CONFIG.CRYSTAL_POINTS;
             P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
             state.particles = state.particles.concat(
-              P.burst(Math.random, state.ship.x, state.ship.y, '#ffe66d', CONFIG.PARTICLES_PER_COLLECT, CONFIG));
+              P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.Y, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
             Game._beep(CONFIG.COLLECT_HZ, CONFIG.COLLECT_MS);
           }
           state.elapsed += dt;
@@ -715,7 +776,7 @@ const Game = {
               state.invincibleFor = CONFIG.INVINCIBLE_SECONDS;
               state.shake = CONFIG.SHAKE_DECAY;
               state.particles = state.particles.concat(
-                P.burst(Math.random, state.ship.x, state.ship.y, '#ff4d6d', CONFIG.PARTICLES_PER_HIT, CONFIG));
+                P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.R, CONFIG.PARTICLES_PER_HIT, CONFIG));
               Game._beep(CONFIG.HIT_HZ, CONFIG.HIT_MS);
               state.asteroids.splice(hitIndex, 1);
             }
@@ -746,7 +807,14 @@ const Game = {
         state.lockoutFor = Math.max(0, state.lockoutFor - dt);
         draw(now);
       } catch (e) {
-        window.__showError((e && e.stack) || String(e), 'game.js');
+        // Same extraction index.html's own catch uses, so the two call sites
+        // name a source the same way instead of one reading the stack and
+        // the other guessing. A frame-body error always physically
+        // originates in game.js, so that is the fallback if the stack has
+        // no filename to read (e.g. a plain string was thrown).
+        const stack = (e && e.stack) || String(e);
+        const match = stack.match(/\/([A-Za-z0-9_.-]+\.js):/);
+        window.__showError(stack, match ? match[1] : 'game.js');
         return;   // stop the loop instead of throwing 60 errors a second
       }
       requestAnimationFrame(frame);
