@@ -96,14 +96,14 @@ function runTests() {
   eq(s3.scale, 1, 'the smaller side decides: 720/400 floors to 1');
   var s4 = P.computeScale(390, 844, 400, 3);
   eq(s4.scale, 1, 'a narrow phone falls back to scale 1 rather than 0');
-  eq(s4.pixelSize, 1200, 'at dpr 3 the backing store is 3x the CSS size');
+  eq(s4.pixelSize, 1170, 'the backing store is exactly the device pixels the canvas occupies');
   eq(s4.cssSize, 390, 'a phone narrower than the arena shows it smaller rather than losing its edges');
   var s5 = P.computeScale(100, 100, 400, 1);
   eq(s5.scale, 1, 'scale never drops below 1 even on a tiny viewport');
 
   var narrow = P.computeScale(375, 812, 400, 2);
   eq(narrow.cssSize <= 375, true, 'the canvas is never wider than the screen it has to fit in');
-  eq(narrow.pixelSize, 800, 'and the bitmap stays a whole multiple of the arena even when shown smaller');
+  eq(narrow.pixelSize, 750, 'a narrow phone gets a bitmap matching its box, so the browser never rescales it');
 
   // ── stars ──
   var stars = P.makeStars(fakeRng([0.5]), CONFIG);
@@ -403,6 +403,21 @@ function runTests() {
   eq(P.startsGame('lost', 'mousedown', undefined, 0), true, 'and so does a click');
   eq(P.startsGame('lost', 'keydown', 'Enter', 0.2), false, 'nothing restarts during the lockout');
   eq(P.startsGame('lost', 'touchstart', undefined, 0.2), false, 'including a tap');
+
+  // The real requirement: the bitmap must be exactly the device pixels the canvas
+  // occupies on screen. If they differ the browser rescales the finished picture and
+  // the art goes soft, which is what used to happen on any phone narrower than the arena.
+  var devices = [[390, 844, 3], [375, 812, 2], [430, 932, 3], [800, 800, 1], [1920, 1080, 1]];
+  var allExact = true;
+  for (var di = 0; di < devices.length; di++) {
+    var f = P.computeScale(devices[di][0], devices[di][1], CONFIG.ARENA, devices[di][2]);
+    if (f.pixelSize !== Math.round(f.cssSize * devices[di][2])) allExact = false;
+  }
+  eq(allExact, true, 'the bitmap always matches the canvas box exactly, on every screen');
+
+  // Where the arena does fit, each unit should still land on whole device pixels.
+  var roomy = P.computeScale(1920, 1080, CONFIG.ARENA, 1);
+  eq(roomy.pixelSize % CONFIG.ARENA, 0, 'on a big screen every unit is still a whole number of pixels');
 
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.

@@ -47,10 +47,16 @@ const Game = {
     computeScale: function (viewW, viewH, arena, dpr) {
       const shortest = Math.min(viewW, viewH);
       const scale = Math.max(1, Math.floor(shortest / arena));
+      // Displayed size: a whole number of arena units where it fits, capped to the
+      // screen on a phone narrower than the arena so the edges are never clipped.
+      const cssSize = Math.min(arena * scale, shortest);
+      // Backing store: exactly the device pixels that box occupies. If these two
+      // disagree the browser has to rescale the finished picture, and no amount of
+      // image-rendering: pixelated makes a 2.5% squeeze look sharp.
       return {
         scale: scale,
-        cssSize: Math.min(arena * scale, shortest),
-        pixelSize: arena * scale * (dpr || 1),
+        cssSize: cssSize,
+        pixelSize: Math.round(cssSize * (dpr || 1)),
       };
     },
 
@@ -560,7 +566,7 @@ const Game = {
       canvas.height = fit.pixelSize;
       canvas.style.width = fit.cssSize + 'px';
       canvas.style.height = fit.cssSize + 'px';
-      state.scale = fit.scale * dpr;
+      state.scale = fit.pixelSize / CONFIG.ARENA;
       ctx.imageSmoothingEnabled = false;
     }
 
