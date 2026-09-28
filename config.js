@@ -6,6 +6,7 @@
 const CONFIG = {
   // ── The playfield ────────────────────────────────────────────
   ARENA: 400,              // The game is 400 x 400 units, always.
+  ARENA_COLOR: '#10131c',  // The background colour behind everything.
 
   // ── The clock ────────────────────────────────────────────────
   SURVIVE_SECONDS: 60,     // How long you have to stay alive.
