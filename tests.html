@@ -44,44 +44,64 @@ function fakeRng(values) {
   return function () { var v = values[Math.min(i, values.length - 1)]; i++; return v; };
 }
 
-var P = Game.pure;
+function runTests() {
+  var P = Game.pure;
 
-// ── clamp ──
-eq(P.clamp(5, 0, 10), 5, 'clamp leaves a value inside the range alone');
-eq(P.clamp(-3, 0, 10), 0, 'clamp raises a value below the range');
-eq(P.clamp(99, 0, 10), 10, 'clamp lowers a value above the range');
+  // ── clamp ──
+  eq(P.clamp(5, 0, 10), 5, 'clamp leaves a value inside the range alone');
+  eq(P.clamp(-3, 0, 10), 0, 'clamp raises a value below the range');
+  eq(P.clamp(99, 0, 10), 10, 'clamp lowers a value above the range');
 
-// ── lerp ──
-eq(P.lerp(0, 100, 0), 0, 'lerp at 0 gives the start');
-eq(P.lerp(0, 100, 1), 100, 'lerp at 1 gives the end');
-eq(P.lerp(0, 100, 0.25), 25, 'lerp interpolates');
-near(P.lerp(1.2, 0.4, 0.5), 0.8, 'lerp counts downwards too');
+  // ── lerp ──
+  eq(P.lerp(0, 100, 0), 0, 'lerp at 0 gives the start');
+  eq(P.lerp(0, 100, 1), 100, 'lerp at 1 gives the end');
+  eq(P.lerp(0, 100, 0.25), 25, 'lerp interpolates');
+  near(P.lerp(1.2, 0.4, 0.5), 0.8, 'lerp counts downwards too');
 
-// ── circlesOverlap ──
-eq(P.circlesOverlap(0, 0, 5, 0, 9, 5), true, 'circles overlap when closer than the sum of radii');
-eq(P.circlesOverlap(0, 0, 5, 0, 11, 5), false, 'circles miss when further than the sum of radii');
-eq(P.circlesOverlap(0, 0, 5, 0, 10, 5), false, 'exactly touching does not count as a hit');
-eq(P.circlesOverlap(0, 0, 6, 3, 4, 4.8), true, 'a ship and the smallest asteroid collide at 5 units apart');
+  // ── circlesOverlap ──
+  eq(P.circlesOverlap(0, 0, 5, 0, 9, 5), true, 'circles overlap when closer than the sum of radii');
+  eq(P.circlesOverlap(0, 0, 5, 0, 11, 5), false, 'circles miss when further than the sum of radii');
+  eq(P.circlesOverlap(0, 0, 5, 0, 10, 5), false, 'exactly touching does not count as a hit');
+  eq(P.circlesOverlap(0, 0, 6, 3, 4, 4.8), true, 'a ship and the smallest asteroid collide at 5 units apart');
 
-// ── formatTime ──
-eq(P.formatTime(60), '1:00', 'formatTime shows a full minute');
-eq(P.formatTime(59.9), '0:59', 'formatTime floors partial seconds');
-eq(P.formatTime(9), '0:09', 'formatTime zero-pads seconds');
-eq(P.formatTime(0), '0:00', 'formatTime handles zero');
-eq(P.formatTime(-2), '0:00', 'formatTime never shows a negative clock');
+  // ── formatTime ──
+  eq(P.formatTime(60), '1:00', 'formatTime shows a full minute');
+  eq(P.formatTime(59.9), '0:59', 'formatTime floors partial seconds');
+  eq(P.formatTime(9), '0:09', 'formatTime zero-pads seconds');
+  eq(P.formatTime(0), '0:00', 'formatTime handles zero');
+  eq(P.formatTime(-2), '0:00', 'formatTime never shows a negative clock');
 
-// ── difficultyAt ──
-var d0 = P.difficultyAt(0, CONFIG);
-near(d0.spawnInterval, 1.2, 'at 0s asteroids spawn every 1.2s');
-near(d0.speed, 60, 'at 0s asteroids move at 60 px/s');
-var d60 = P.difficultyAt(60, CONFIG);
-near(d60.spawnInterval, 0.4, 'at 60s asteroids spawn every 0.4s');
-near(d60.speed, 140, 'at 60s asteroids move at 140 px/s');
-var d30 = P.difficultyAt(30, CONFIG);
-near(d30.spawnInterval, 0.8, 'halfway through, the spawn interval is halfway');
-near(d30.speed, 100, 'halfway through, the speed is halfway');
-var dLate = P.difficultyAt(999, CONFIG);
-near(dLate.speed, 140, 'difficulty stops rising past the end of the run');
+  // ── difficultyAt ──
+  var d0 = P.difficultyAt(0, CONFIG);
+  near(d0.spawnInterval, 1.2, 'at 0s asteroids spawn every 1.2s');
+  near(d0.speed, 60, 'at 0s asteroids move at 60 px/s');
+  var d60 = P.difficultyAt(60, CONFIG);
+  near(d60.spawnInterval, 0.4, 'at 60s asteroids spawn every 0.4s');
+  near(d60.speed, 140, 'at 60s asteroids move at 140 px/s');
+  var d30 = P.difficultyAt(30, CONFIG);
+  near(d30.spawnInterval, 0.8, 'halfway through, the spawn interval is halfway');
+  near(d30.speed, 100, 'halfway through, the speed is halfway');
+  var dLate = P.difficultyAt(999, CONFIG);
+  near(dLate.speed, 140, 'difficulty stops rising past the end of the run');
+
+  // ─────────────────────────────────────────────────────────────
+  //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
+  //  They must stay inside runTests() so that a crash still shows
+  //  up as a red failure instead of a blank page.
+  // ─────────────────────────────────────────────────────────────
+}
+
+try {
+  runTests();
+} catch (e) {
+  // If a test throws — a typo, a function that does not exist yet — this file
+  // would otherwise stop before writing the results below, and you would see a
+  // blank page instead of something red. Count the crash as a failure instead.
+  var crash = 'CRASH — ' + (e && e.message ? e.message : String(e));
+  results.failed++;
+  results.failures.push(crash);
+  lines.push('<div class="fail">' + crash + '</div>');
+}
 
 document.getElementById('out').innerHTML =
   '<p>' + results.passed + ' passed, ' + results.failed + ' failed</p>' + lines.join('');
