@@ -19,6 +19,11 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    with http.server.ThreadingHTTPServer(('', PORT), NoCacheHandler) as httpd:
+    # Bind to loopback only. '' binds every interface, which would let anyone
+    # on the same Wi-Fi browse this folder for as long as the Terminal window
+    # is open — and SimpleHTTPRequestHandler serves dotfiles and directory
+    # listings, which from a worktree includes the SDD workspace. Students
+    # play from the published URL, so nothing needs LAN access at all.
+    with http.server.ThreadingHTTPServer(('127.0.0.1', PORT), NoCacheHandler) as httpd:
         print('Serving Star Scavenger on http://localhost:%d/' % PORT)
         httpd.serve_forever()
