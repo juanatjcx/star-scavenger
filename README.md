@@ -9,6 +9,10 @@ it is).
 
 ## Running it on your own machine
 
+Clone the repository, don't download the ZIP — GitHub's "Download ZIP" strips
+the executable bit and adds a macOS quarantine flag, so `serve.command` won't
+double-click-run from it.
+
 Double-click `serve.command`. It serves the folder on `http://localhost:8000/`
 and opens the game in your browser. If a server is already running on that
 port — say, from an earlier double-click you forgot about — it just opens the
@@ -26,8 +30,9 @@ messages, so if you are changing the code, use `serve.command`.
 | `sprites.js` | The pixel art, drawn with letters. |
 | `game.js` | The game loop. You shouldn't need to touch it. |
 | `index.html` | The page and the error message panel. |
-| `tests.html` | Open it in a browser to check the maths still works (179 checks). |
+| `tests.html` | Open it in a browser to check the maths still works (199 checks). |
 | `serve.command` | Double-click to run the game locally. |
+| `serve.py` | The local server `serve.command` runs. Binds to `127.0.0.1` only. |
 
 ## Controls
 
