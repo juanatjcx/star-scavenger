@@ -1,5 +1,11 @@
 # Teaching with Star Scavenger
 
+Jump to: [Before class](#before-class) · [Opening](#opening) ·
+[Tier 1](#tier-1) · [Tier 1b — art](#tier-1b) ·
+[Tier 2 — paste-in code](#tier-2) · [Smoke checklist](#smoke-checklist) ·
+[When it breaks](#troubleshooting)
+
+<a id="before-class"></a>
 ## Before class
 
 1. Double-click `serve.command`. Leave the Terminal window open — closing it
@@ -15,6 +21,7 @@ The loop for the whole lesson: **a student suggests something → you change one
 number → you save → you reload the browser → the room reacts.** Keep it to one
 change at a time. The reaction is the lesson.
 
+<a id="opening"></a>
 ## Opening, about 60 seconds
 
 > "This is a game. It's about a thousand lines of instructions, and I can read
@@ -23,6 +30,7 @@ change at a time. The reaction is the lesson.
 
 Change it, reload, fly the ship. Then: "What else should we change?"
 
+<a id="tier-1"></a>
 ## Tier 1 — one number in `config.js`
 
 These are all safe, instant, and reversible. Change the number, save, reload.
@@ -35,15 +43,15 @@ Ordered roughly easiest-to-read first.
 | "Give me more lives" | `SHIP_LIVES` | 3 → 10 | Ten hearts along the bottom. |
 | "Make it shorter" | `SURVIVE_SECONDS` | 60 → 15 | A whole game in fifteen seconds. |
 | "Let me restart faster" | `RESTART_LOCKOUT_SECONDS` | 0.4 → 0 | Enter (or a tap) works the instant an ending appears, instead of after a short pause. |
-| "More crystals!" | `CRYSTALS_ON_SCREEN` | 5 → 30 | The screen fills with treasure. Safe well past this — 60 never fails to place a crystal, 80 fails about 4% of the time, 100 about a third of the time, and it never hangs at any value; past ~80 they just start overlapping into blobs. |
+| "More crystals!" | `CRYSTALS_ON_SCREEN` | 5 → 30 | The screen fills with treasure. Safe well past this — see the note below the table. |
 | "Crystals worth more" | `CRYSTAL_POINTS` | 10 → 500 | Score explodes. |
 | "Make crystals easier to grab" | `CRYSTAL_RADIUS` | 5 → 12 | You don't have to be exact anymore. |
 | "Too many rocks" | `ASTEROID_SPAWN_INTERVAL_END` | 0.4 → 1.0 | The ending stops being frantic. |
-| "Make it impossible" | `ASTEROID_SPAWN_INTERVAL_START` | 1.2 → 0.15 | A wall of rocks from second one. `ASTEROID_MAX_ALIVE: 20` is the reason the tab doesn't freeze at extreme settings like this — normal play peaks near 9 rocks alive at once, so 20 is a ceiling, not a target. |
+| "Make it impossible" | `ASTEROID_SPAWN_INTERVAL_START` | 1.2 → 0.15 | A wall of rocks from second one — see the note below the table on why the tab doesn't freeze. |
 | "Rocks too fast" | `ASTEROID_SPEED_END` | 140 → 80 | Dodgeable again. |
 | "GIANT rocks" | `ASTEROID_SIZES` | `[12, 20, 28]` → `[28, 28, 28]` | Only boulders. |
 | "Tiny rocks" | `ASTEROID_SIZES` | `[12, 20, 28]` → `[12, 12, 12]` | Fast and sneaky. |
-| "Make them fly straight" | `ASTEROID_JITTER_DEG` | 30 → 0 | Predictable lanes. Notice it gets *easier*. Push it the other way, toward 89, and a rock's inward speed collapses — at 89 it would take roughly 390 seconds to cross the screen, so the only thing that ever removes it is `ASTEROID_MAX_LIFETIME: 20` timing it out. That key looks unused in normal play (no rock survives past ~9 seconds) but it isn't. |
+| "Make them fly straight" | `ASTEROID_JITTER_DEG` | 30 → 0 | Predictable lanes. Notice it gets *easier* — see the note below the table on what happens at the other extreme. |
 | "Stop them spinning" | `ASTEROID_SPIN_DEG` | 90 → 0 | Looks frozen. A good "looks vs. rules" moment — the rock's hitbox never depended on which way it was facing. |
 | "It's too hard" | `SHIP_RADIUS` | 6 → 3 | Squeeze through gaps. Explain the hit zone. |
 | "Longer invincibility" | `INVINCIBLE_SECONDS` | 1.5 → 5 | Blinks for ages, can't be hit. |
@@ -57,6 +65,30 @@ Ordered roughly easiest-to-read first.
 | "Make the clock panic earlier" | `CLOCK_URGENT_SECONDS` | 15 → 40 | Under the shipped setting the clock is calm for three-quarters of the run and only gets nervous in the last 15 seconds. Raise this to 40 and most of the round feels tense. |
 | "Bigger reward for surviving" | `WIN_BONUS` | 100 → 1000 | Surviving becomes worth more than collecting — a good lead-in to a strategy discussion. |
 
+### Notes on three of the rows above
+
+The table above is meant to be read in three seconds while thirty people
+watch, so the longer reasoning behind a few rows lives here instead.
+
+- **`CRYSTALS_ON_SCREEN`** is safe well past 30. Zero spawn-placement
+  failures through 60, about 4% of placements fail at 80, about a third fail
+  at 100 — and it never hangs at any value. Past roughly 80 the crystals
+  just start overlapping into blobs instead.
+- **`ASTEROID_SPAWN_INTERVAL_START`** (the "make it impossible" row):
+  `ASTEROID_MAX_ALIVE: 20` is why the tab doesn't freeze even at an extreme
+  setting like 0.15 — it's a hard ceiling on how many rocks can exist at
+  once. Normal play peaks around 8, so 20 is a ceiling, not a target.
+- **`ASTEROID_JITTER_DEG`** pushed the other way, toward 89, collapses a
+  rock's inward speed to about 1.7% of normal. Assuming the *start-of-run*
+  speed of 60 units/second (`ASTEROID_SPEED_START` — the slowest asteroids
+  ever get; they're faster later in the run), a rock that jittered that hard
+  would take roughly 390 seconds to cross the screen, so
+  `ASTEROID_MAX_LIFETIME: 20` — which times a rock out after 20 seconds —
+  becomes the only thing that ever removes it. That key looks unused in
+  normal play (no rock survives past roughly 9 seconds under shipped
+  settings) but it isn't.
+
+<a id="tier-1b"></a>
 ## Tier 1b — change the art (`sprites.js`)
 
 | A student says | Change | What they'll see |
@@ -77,12 +109,13 @@ before someone makes one live:
 - **Inserting or deleting a character changes a row's length, and that stops
   the game.** Every row in a sprite must be exactly as long as row 0. Both
   `tests.html` and the game itself check this now — the game's own error
-  panel names the exact sprite and row, e.g. *"Sprite 'gold' has rows of
+  panel names the exact sprite and row, e.g. *Sprite "gold" has rows of
   different lengths: row 3 is 9 characters but row 0 is 8 characters. Every
-  row must be the same length."* That matters more than it sounds: nobody
+  row must be the same length.* That matters more than it sounds: nobody
   opens `tests.html` mid-lesson, but everybody sees the game's own error
   panel. Read the message aloud, count characters, fix the row, reload.
 
+<a id="tier-2"></a>
 ## Tier 2 — paste-ready features (these do edit `game.js`)
 
 Save these for when a suggestion deserves real code. Each is self-contained.
@@ -144,14 +177,29 @@ two — once when the game starts, once in `reset()`):
         }
 ```
 
-Replace the collect block's scoring with:
+In `frame`, replace the **entire** `if (got >= 0) { ... }` collect block —
+every line from `if (got >= 0) {` down to its closing `}` — with this. It's a
+full replacement, not a patch to paste on top of what's there:
 ```javascript
         const got = P.findCollected(state.ship, state.crystals, CONFIG);
         if (got >= 0) {
           const wasGold = state.crystals[got].gold;
           state.crystals.splice(got, 1);
           state.score += wasGold ? CONFIG.GOLD_POINTS : CONFIG.CRYSTAL_POINTS;
+          P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
+          for (let i = 0; i < state.crystals.length; i++) {
+            if (state.crystals[i].gold === undefined) {
+              state.crystals[i].gold = Math.random() < CONFIG.GOLD_CHANCE;
+            }
+          }
+          state.particles = state.particles.concat(
+            P.burst(Math.random, state.ship.x, state.ship.y, '#ffe66d', CONFIG.PARTICLES_PER_COLLECT, CONFIG));
+          Game._beep(CONFIG.COLLECT_HZ, CONFIG.COLLECT_MS);
+        }
 ```
+This is also the third and last place crystals need tagging — it does its
+own refill-and-tag inline, which is why the instruction above only names two
+other call sites, not three.
 
 And in `draw()`, replace the crystal loop with:
 ```javascript
@@ -202,6 +250,7 @@ It borrows the heart sprite. **This is the best homework in the file:** ask a
 student to draw a proper 8×8 shield in `sprites.js` and change `'heart'` to
 `'shield'`.
 
+<a id="smoke-checklist"></a>
 ## Smoke checklist
 
 Run this after any change you're unsure about. All ten should pass.
@@ -221,14 +270,16 @@ Run this after any change you're unsure about. All ten should pass.
 
 Also: open `tests.html` and confirm `0 failed` (there are 168 checks total).
 
+<a id="troubleshooting"></a>
 ## When it breaks in front of everyone
 
 **A red panel with an error message.** Good — that's the design working. Read
 the message aloud; it names the file. Usually a missing comma or brace in
 `config.js`. If several things broke at once, the panel only shows the
-*first* error and counts the rest ("...and 2 later errors — see the
-console") — the first one is the one to fix; the others are usually just
-fallout from it. Undo, reload, carry on.
+*first* error and counts the rest — e.g. *"(2 later errors followed this one
+— see the console)"* tacked on after the message — and the first one is the
+one to fix; the others are usually just fallout from it. Undo, reload, carry
+on.
 
 **The panel says `"Script error."` with no detail.** You are not on the
 server. You opened `index.html` directly. Double-click `serve.command` and
@@ -241,10 +292,10 @@ share one namespace, so a name can only be declared once across all of them.
 **A magenta block in the art.** A letter in `sprites.js` isn't in `PALETTE`.
 Add it or change it back.
 
-**A ragged-row error** (something like *"Sprite 'ship' has rows of different
-lengths: row 5 is 18 characters but row 0 is 17 characters"*). Someone typed
-a character into a sprite row instead of substituting one — count characters
-against row 0 and fix that one row.
+**A ragged-row error** (something like *Sprite "ship" has rows of different
+lengths: row 5 is 18 characters but row 0 is 17 characters. Every row must
+be the same length.*). Someone typed a character into a sprite row instead
+of substituting one — count characters against row 0 and fix that one row.
 
 **Nothing at all happens when you reload.** Hard-reload (Cmd-Shift-R, or
 Ctrl-Shift-R on Windows) — the browser is caching the old `config.js` and
