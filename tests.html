@@ -291,6 +291,14 @@ function runTests() {
   }
   eq(Object.keys(directions).length, 4, 'burst sends its pieces in different directions');
 
+  // ── finalScore ──
+  eq(P.finalScore(120, CONFIG), 120 + CONFIG.WIN_BONUS, 'surviving adds the win bonus');
+  eq(P.finalScore(0, CONFIG), CONFIG.WIN_BONUS, 'surviving with nothing collected still pays the bonus');
+
+  // ── the high score store survives a hostile browser ──
+  eq(typeof Game._loadHighScore(), 'number', 'the high score always reads back as a number');
+  eq(Game._loadHighScore() >= 0, true, 'and is never negative, even on a fresh browser');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows

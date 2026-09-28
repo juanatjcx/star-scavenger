@@ -227,6 +227,11 @@ const Game = {
       return out;
     },
 
+    // Surviving the whole run pays a flat bonus on top of whatever was collected.
+    finalScore: function (score, cfg) {
+      return score + cfg.WIN_BONUS;
+    },
+
     // Turn rows of letters into a list of coloured pixels.
     parseSprite: function (rows, palette) {
       const pixels = [];
@@ -245,6 +250,23 @@ const Game = {
   },
 
   _cache: Object.create(null),
+
+  _STORE_KEY: 'starScavengerHighScore',
+
+  // localStorage can throw (private windows, blocked site data), and a personal
+  // best is not worth losing the game over. Note this is per-device and
+  // per-address: it is your own best, not the class leaderboard.
+  _loadHighScore: function () {
+    try {
+      const raw = localStorage.getItem(Game._STORE_KEY);
+      const n = parseInt(raw, 10);
+      return isNaN(n) || n < 0 ? 0 : n;
+    } catch (e) { return 0; }
+  },
+
+  _saveHighScore: function (n) {
+    try { localStorage.setItem(Game._STORE_KEY, String(n)); } catch (e) { /* not important */ }
+  },
 
   // Draw a sprite once into its own little canvas, then reuse it every frame.
   _spriteCanvas: function (name) {
@@ -312,8 +334,48 @@ const Game = {
       invincibleFor: 0,
       shake: 0,
       particles: [],
+      phase: 'title',
+      timeLeft: CONFIG.SURVIVE_SECONDS,
+      highScore: Game._loadHighScore(),
     };
     P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
+
+    // Bring every mutable key introduced since Task 3 back to its starting
+    // value. `stars`, `scale` and `highScore` are deliberately left alone:
+    // the background is continuous, the scale belongs to resize(), and the
+    // high score is the whole point of persisting it.
+    function reset() {
+      state.ship.x = CONFIG.ARENA / 2;
+      state.ship.y = CONFIG.ARENA / 2;
+      state.crystals.length = 0;
+      state.asteroids = [];
+      state.particles = [];
+      state.score = 0;
+      state.lives = CONFIG.SHIP_LIVES;
+      state.timeLeft = CONFIG.SURVIVE_SECONDS;
+      state.elapsed = 0;
+      state.spawnTimer = 0;
+      state.invincibleFor = 0;
+      state.shake = 0;
+      P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
+      state.phase = 'playing';
+    }
+
+    // Title, win and lose screens all restart on any key or tap — there is no
+    // menu to read first. This listener is registered BEFORE the touch
+    // steering listener below so that, when a tap both dismisses an end
+    // screen and starts touchstart's own handler, reset() has already moved
+    // the ship back to the centre before that handler records the finger's
+    // offset from it — otherwise the offset would be measured against wherever
+    // the ship happened to be when the previous run ended, and the new run
+    // would open with a phantom fling toward that stale spot.
+    function anyButton() {
+      if (state.phase === 'playing') return;
+      reset();
+    }
+    window.addEventListener('keydown', anyButton);
+    canvas.addEventListener('touchstart', anyButton, { passive: false });
+    canvas.addEventListener('mousedown', anyButton);
 
     // ── Input. Keyboard and touch both end up in here, so there is exactly
     //    one place to look when the controls misbehave. ──
@@ -428,11 +490,44 @@ const Game = {
         ctx.fillStyle = p.color;
         ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
       }
-      // Task 9 adds the hearts HUD here.
-
+      // ── HUD ──
       ctx.fillStyle = '#e8e8ff';
       ctx.font = '10px monospace';
-      ctx.fillText('SCORE ' + state.score, 6, 12);
+      ctx.textAlign = 'left';
+      ctx.fillText('SCORE ' + state.score, 6, 13);
+      ctx.textAlign = 'right';
+      ctx.fillText('BEST ' + state.highScore, CONFIG.ARENA - 6, 13);
+
+      // The clock is the biggest thing on screen, and it turns red at the end.
+      ctx.textAlign = 'center';
+      ctx.font = '22px monospace';
+      ctx.fillStyle = state.timeLeft <= 10 ? '#ff4d6d' : '#e8e8ff';
+      ctx.fillText(P.formatTime(state.timeLeft), CONFIG.ARENA / 2, 26);
+
+      for (let i = 0; i < state.lives; i++) {
+        Game._drawSprite(ctx, 'heart', 12 + i * 10, CONFIG.ARENA - 12, 0);
+      }
+
+      if (state.phase !== 'playing') {
+        ctx.fillStyle = 'rgba(5, 6, 10, 0.78)';
+        ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#e8e8ff';
+        ctx.font = '20px monospace';
+        const headline = state.phase === 'title' ? 'STAR SCAVENGER'
+                       : state.phase === 'won' ? 'YOU SURVIVED!' : 'GAME OVER';
+        ctx.fillText(headline, CONFIG.ARENA / 2, 170);
+        ctx.font = '10px monospace';
+        if (state.phase === 'title') {
+          ctx.fillText('Collect crystals. Dodge rocks.', CONFIG.ARENA / 2, 196);
+          ctx.fillText('Survive ' + CONFIG.SURVIVE_SECONDS + ' seconds.', CONFIG.ARENA / 2, 210);
+          ctx.fillText('Arrows or WASD  —  or drag on a phone', CONFIG.ARENA / 2, 230);
+        } else {
+          ctx.fillText('SCORE ' + state.score, CONFIG.ARENA / 2, 196);
+        }
+        ctx.fillText('Press any key or tap to play', CONFIG.ARENA / 2, 260);
+      }
+      ctx.textAlign = 'left';
     }
 
     let last = performance.now();
@@ -443,43 +538,60 @@ const Game = {
       const dt = Math.min((now - last) / 1000, CONFIG.MAX_FRAME_SECONDS);
       last = now;
       try {
-        P.scrollStars(state.stars, dt, CONFIG);
-        P.stepShip(state.ship, currentAim(dt), dt, CONFIG);
-        const got = P.findCollected(state.ship, state.crystals, CONFIG);
-        if (got >= 0) {
-          state.crystals.splice(got, 1);
-          state.score += CONFIG.CRYSTAL_POINTS;
-          P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
-          state.particles = state.particles.concat(
-            P.burst(Math.random, state.ship.x, state.ship.y, '#ffe66d', CONFIG.PARTICLES_PER_COLLECT, CONFIG));
-        }
-        state.elapsed += dt;
-        state.spawnTimer -= dt;
-        if (state.spawnTimer <= 0) {
-          state.spawnTimer = P.difficultyAt(state.elapsed, CONFIG).spawnInterval;
-          // The cap exists so that setting the spawn interval to 0.01 in front of
-          // a class slows the game down instead of killing the tab.
-          if (state.asteroids.length < CONFIG.ASTEROID_MAX_ALIVE) {
-            state.asteroids.push(P.pickAsteroidSpawn(Math.random, state.elapsed, CONFIG));
-          }
-        }
-        P.stepAsteroids(state.asteroids, dt);
-        state.asteroids = P.pruneAsteroids(state.asteroids, CONFIG);
-        state.invincibleFor = Math.max(0, state.invincibleFor - dt);
-        state.shake = Math.max(0, state.shake - dt);
-        if (state.invincibleFor === 0) {
-          const hitIndex = P.findHit(state.ship, state.asteroids, CONFIG);
-          if (hitIndex >= 0) {
-            state.lives -= 1;
-            state.invincibleFor = CONFIG.INVINCIBLE_SECONDS;
-            state.shake = CONFIG.SHAKE_DECAY;
+        if (state.phase === 'playing') {
+          P.scrollStars(state.stars, dt, CONFIG);
+          P.stepShip(state.ship, currentAim(dt), dt, CONFIG);
+          const got = P.findCollected(state.ship, state.crystals, CONFIG);
+          if (got >= 0) {
+            state.crystals.splice(got, 1);
+            state.score += CONFIG.CRYSTAL_POINTS;
+            P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
             state.particles = state.particles.concat(
-              P.burst(Math.random, state.ship.x, state.ship.y, '#ff4d6d', CONFIG.PARTICLES_PER_HIT, CONFIG));
-            state.asteroids.splice(hitIndex, 1);
+              P.burst(Math.random, state.ship.x, state.ship.y, '#ffe66d', CONFIG.PARTICLES_PER_COLLECT, CONFIG));
+          }
+          state.elapsed += dt;
+          state.spawnTimer -= dt;
+          if (state.spawnTimer <= 0) {
+            state.spawnTimer = P.difficultyAt(state.elapsed, CONFIG).spawnInterval;
+            // The cap exists so that setting the spawn interval to 0.01 in front of
+            // a class slows the game down instead of killing the tab.
+            if (state.asteroids.length < CONFIG.ASTEROID_MAX_ALIVE) {
+              state.asteroids.push(P.pickAsteroidSpawn(Math.random, state.elapsed, CONFIG));
+            }
+          }
+          P.stepAsteroids(state.asteroids, dt);
+          state.asteroids = P.pruneAsteroids(state.asteroids, CONFIG);
+          state.invincibleFor = Math.max(0, state.invincibleFor - dt);
+          state.shake = Math.max(0, state.shake - dt);
+          if (state.invincibleFor === 0) {
+            const hitIndex = P.findHit(state.ship, state.asteroids, CONFIG);
+            if (hitIndex >= 0) {
+              state.lives -= 1;
+              state.invincibleFor = CONFIG.INVINCIBLE_SECONDS;
+              state.shake = CONFIG.SHAKE_DECAY;
+              state.particles = state.particles.concat(
+                P.burst(Math.random, state.ship.x, state.ship.y, '#ff4d6d', CONFIG.PARTICLES_PER_HIT, CONFIG));
+              state.asteroids.splice(hitIndex, 1);
+            }
+          }
+          state.particles = P.stepParticles(state.particles, dt);
+
+          // The clock runs on clamped time, so backgrounding the tab pauses the
+          // run rather than failing it, and a slow device gets the same
+          // game-time and the same difficulty curve as a fast one.
+          state.timeLeft -= dt;
+          if (state.lives <= 0) {
+            state.phase = 'lost';
+          } else if (state.timeLeft <= 0) {
+            state.timeLeft = 0;
+            state.score = P.finalScore(state.score, CONFIG);
+            state.phase = 'won';
+          }
+          if (state.phase !== 'playing' && state.score > state.highScore) {
+            state.highScore = state.score;
+            Game._saveHighScore(state.score);
           }
         }
-        state.particles = P.stepParticles(state.particles, dt);
-        // Task 9 adds game-phase logic (game over / heart HUD) here.
         draw();
       } catch (e) {
         window.__showError((e && e.stack) || String(e), 'game.js');

@@ -59,4 +59,7 @@ const CONFIG = {
   PARTICLE_SPEED_MIN: 0.4,  // Slowest piece, as a share of PARTICLE_SPEED.
                             // The rest fly faster, up to full speed.
   PARTICLE_LIFE: 0.45,       // Seconds a spark lives before fading out.
+
+  // ── Winning ──────────────────────────────────────────────────
+  WIN_BONUS: 100,          // Extra points for surviving the whole minute.
 };
