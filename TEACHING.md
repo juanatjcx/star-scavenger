@@ -16,6 +16,11 @@ Jump to: [Before class](#before-class) · [Opening](#opening) ·
    (once it's live — see the README).
 4. Reload `http://localhost:8000/index.html` once yourself before anyone
    arrives, just to see a clean, error-free start.
+5. On a 1366×768 laptop or a 1024×768 projector the game renders at a fixed
+   400×400 in the middle of the screen, with black around it — that's by
+   design, not a bug. If it looks small, zoom the browser to 200% (Cmd/Ctrl
+   and `+`): it roughly doubles the projected size for free. At 1920×1080 or
+   larger this never comes up.
 
 The loop for the whole lesson: **a student suggests something → you change one
 number → you save → you reload the browser → the room reacts.** Keep it to one
@@ -58,6 +63,7 @@ Ordered roughly easiest-to-read first.
 | "Stop the shaking" | `SHAKE_PIXELS` | 6 → 0 | Calm. Then try 40. |
 | "MORE EXPLOSIONS" | `PARTICLES_PER_HIT` | 14 → 80 | Fireworks. |
 | "Celebrate every pickup" | `PARTICLES_PER_COLLECT` | 8 → 30 | A little burst every time, not just on hits. |
+| "Change the background" | `ARENA_COLOR` | `'#10131c'` → `'#1a0d2e'` | The whole arena behind everything else changes colour. |
 | "More stars" | `STAR_COUNT` | 60 → 400 | Dense starfield. |
 | "Make the stars race by" | `STAR_SCROLL_SPEED` | 12 → 80 | A sense of speed even though the ship isn't faster — good for separating "how it looks" from "how it plays." |
 | "Turn the sound off" | `SOUND_ON` | true → false | Silence. |
@@ -268,7 +274,7 @@ Run this after any change you're unsure about. All ten should pass.
 9. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
 10. The BEST score survives a reload.
 
-Also: open `tests.html` and confirm `0 failed` (there are 179 checks total).
+Also: open `tests.html` and confirm `0 failed` (there are 199 checks total).
 
 <a id="troubleshooting"></a>
 ## When it breaks in front of everyone
@@ -311,3 +317,8 @@ which of the two happened.
 **The game is in slow motion.** Something is very expensive — usually a huge
 `CRYSTALS_ON_SCREEN` or `STAR_COUNT`. The game deliberately slows down rather
 than skipping collision checks.
+
+**Clearing `BEST` between classes.** The high score is saved in the browser,
+so the next class inherits whatever the last one reached. Open the browser
+console (Cmd-Option-J) and run
+`localStorage.removeItem('starScavengerHighScore')`, then reload.
