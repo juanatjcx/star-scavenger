@@ -15,10 +15,12 @@ if ask; then
   exit 0
 fi
 
-python3 -m http.server 8000 &
+python3 serve.py &
 SERVER_PID=$!
 
-# Keep asking until the server answers, but give up after six seconds.
+# Keep asking until the server answers, but give up after roughly six seconds
+# — the deadline is only checked between attempts, and each attempt can itself
+# take up to two seconds, so the actual worst case is closer to eight or nine.
 DEADLINE=$(( $(date +%s) + 6 ))
 until ask; do
   if [ "$(date +%s)" -ge "$DEADLINE" ]; then
@@ -30,6 +32,7 @@ until ask; do
     echo "Press Return to close this window."
     read -r
     kill $SERVER_PID 2>/dev/null
+    wait $SERVER_PID 2>/dev/null
     exit 1
   fi
   sleep 0.2
