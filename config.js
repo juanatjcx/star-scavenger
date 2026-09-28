@@ -20,7 +20,7 @@ const CONFIG = {
   ASTEROID_SPEED_END: 140,             // ...and at the end. Higher = harder.
 
   // ── Background ───────────────────────────────────────────────
-  STAR_COUNT: 60,          // How many stars drift past behind the game.
+  STAR_COUNT: 70,          // How many stars drift past behind the game.
   STAR_SCROLL_SPEED: 12,   // How fast they drift, in units per second.
   STAR_SHADES: ['#2c3350', '#4a5580', '#8e9ccc'],  // Dim, medium and bright stars.
 
