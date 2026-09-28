@@ -67,7 +67,7 @@ const Game = {
         stars.push({
           x: Math.floor(rng() * cfg.ARENA),
           y: Math.floor(rng() * cfg.ARENA),
-          bright: 1 + Math.floor(rng() * 3),
+          bright: 1 + Math.floor(rng() * cfg.STAR_SHADES.length),
         });
       }
       return stars;
@@ -77,8 +77,7 @@ const Game = {
     // bottom edge back to the top.
     scrollStars: function (stars, dt, cfg) {
       for (let i = 0; i < stars.length; i++) {
-        stars[i].y += cfg.STAR_SCROLL_SPEED * dt;
-        if (stars[i].y >= cfg.ARENA) stars[i].y -= cfg.ARENA;
+        stars[i].y = (stars[i].y + cfg.STAR_SCROLL_SPEED * dt) % cfg.ARENA;
       }
     },
 
@@ -254,11 +253,24 @@ const Game = {
       return { w: rows[0].length, h: rows.length, pixels: pixels };
     },
 
-    // Blend two "#rrggbb" colours. t=0 gives the first, t=1 the second.
+    // Blend two colours written as "#rrggbb". t=0 gives the first, t=1 the second.
+    // Short forms like "#f00" are expanded; anything else we cannot read (a name
+    // like "red", say) falls back to the colour being mixed towards, so the clock
+    // still draws instead of quietly vanishing.
     mixColor: function (a, b, t) {
+      const full = function (hex) {
+        if (typeof hex !== 'string') return null;
+        if (/^#[0-9a-fA-F]{3}$/.test(hex)) {
+          return '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        }
+        return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : null;
+      };
+      const ca = full(a);
+      const cb = full(b);
+      if (!ca || !cb) return b;
       const f = Game.pure.clamp(t, 0, 1);
       const pick = function (hex, i) { return parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16); };
-      const part = function (i) { return Math.round(Game.pure.lerp(pick(a, i), pick(b, i), f)); };
+      const part = function (i) { return Math.round(Game.pure.lerp(pick(ca, i), pick(cb, i), f)); };
       return 'rgb(' + part(0) + ', ' + part(1) + ', ' + part(2) + ')';
     },
 
@@ -300,7 +312,7 @@ const Game = {
         const into = P.clamp(1 - timeLeft / cfg.CLOCK_PULSE_SECONDS, 0, 1);
         const hz = P.lerp(cfg.CLOCK_PULSE_HZ_START, cfg.CLOCK_PULSE_HZ_END, into);
         const beat = (Math.sin(seconds * hz * Math.PI * 2) + 1) / 2;
-        scale = P.lerp(1, cfg.CLOCK_PULSE_MAX, beat);
+        scale = Math.max(1, P.lerp(1, cfg.CLOCK_PULSE_MAX, beat));
       }
 
       return { color: color, dx: dx, dy: dy + kick, scale: scale };
@@ -345,7 +357,7 @@ const Game = {
     if (Game._cache[name]) return Game._cache[name];
     const rows = SPRITES[name];
     if (!rows || !rows.length) {
-      throw new Error('The sprite "' + name + '" is missing or empty in sprites.js');
+      throw new Error('The sprite "' + name + '" is missing or empty in sprites.js. Fix it in sprites.js.');
     }
     // Every row must be the same number of characters. If one row is longer, the
     // extra pixels fall outside the sprite and vanish without any warning — the
@@ -355,7 +367,7 @@ const Game = {
       if (rows[i].length !== rows[0].length) {
         throw new Error('Sprite "' + name + '" has rows of different lengths: row ' + i +
           ' is ' + rows[i].length + ' characters but row 0 is ' + rows[0].length +
-          '. Every row must be the same length.');
+          '. Every row must be the same length. Fix it in sprites.js.');
       }
     }
     const art = Game.pure.parseSprite(rows, PALETTE);
@@ -503,7 +515,10 @@ const Game = {
 
     window.addEventListener('keydown', function (e) {
       input.keys[e.key] = true;
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].indexOf(e.key) >= 0) e.preventDefault();
+      if (!e.metaKey && !e.ctrlKey && !e.altKey &&
+          ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].indexOf(e.key) >= 0) {
+        e.preventDefault();
+      }
     });
     window.addEventListener('keyup', function (e) { input.keys[e.key] = false; });
     window.addEventListener('blur', function () { input.keys = {}; });
@@ -571,10 +586,9 @@ const Game = {
     }
 
     function drawStars(ctx, stars) {
-      const shades = ['#2c3350', '#4a5580', '#8e9ccc'];
       for (let i = 0; i < stars.length; i++) {
         const s = stars[i];
-        ctx.fillStyle = shades[s.bright - 1];
+        ctx.fillStyle = CONFIG.STAR_SHADES[s.bright - 1];
         ctx.fillRect(Math.floor(s.x), Math.floor(s.y), 1, 1);
       }
     }

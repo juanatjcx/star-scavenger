@@ -21,6 +21,7 @@ const CONFIG = {
   // ── Background ───────────────────────────────────────────────
   STAR_COUNT: 60,          // How many stars drift past behind the game.
   STAR_SCROLL_SPEED: 12,   // How fast they drift, in units per second.
+  STAR_SHADES: ['#2c3350', '#4a5580', '#8e9ccc'],  // Dim, medium and bright stars.
 
   // ── Timing (don't change these without reading the comments) ─
   MAX_FRAME_SECONDS: 0.025,  // Longest step we allow. Bigger values let the
@@ -44,8 +45,14 @@ const CONFIG = {
   ASTEROID_RADIUS_FACTOR: 0.4,     // Hit zone as a share of size. Smaller = kinder.
   ASTEROID_JITTER_DEG: 30,         // How crooked their paths are. 0 = straight lines.
   ASTEROID_SPIN_DEG: 90,           // How fast they tumble. Looks only.
-  ASTEROID_MAX_ALIVE: 20,          // Hard ceiling. Stops a silly spawn rate freezing
-                                   // the browser. Normal play peaks near 13.
+  ASTEROID_MAX_ALIVE: 20,          // Hard ceiling. Stops a silly spawn rate (like
+                                   // 0.01) freezing the browser in front of a class.
+                                   // Normal play peaks near 13 alive, with about 81
+                                   // spawned across a run, so 40 could never fire and
+                                   // would be dead code. The 13-to-20 headroom is
+                                   // thinner than when this number was chosen — it
+                                   // still protects rather than shapes normal play,
+                                   // but with less margin than it used to.
   ASTEROID_MAX_LIFETIME: 20,       // Seconds before a stray rock is removed.
   ASTEROID_DESPAWN_MARGIN: 40,     // How far off screen they appear and disappear.
 
@@ -68,11 +75,17 @@ const CONFIG = {
   // ── The clock's nerves ───────────────────────────────────────
   //  As time runs out the clock changes colour, shivers, jumps on
   //  every tick, and finally starts beating like a heart.
-  CLOCK_URGENT_SECONDS: 15,     // When it starts getting nervous. Try 40.
+  CLOCK_URGENT_SECONDS: 15,     // When it starts getting nervous. Try 40. Set this to
+                                 // 0 and the colour change, shiver and kick all stop —
+                                 // but NOT the heartbeat below, which is timed off the
+                                 // raw clock rather than off this urgency window. The
+                                 // two are independent on purpose, just not obviously.
   CLOCK_CALM_COLOR: '#e8e8ff',  // Its colour with plenty of time left.
   CLOCK_WARN_COLOR: '#ffc44d',  // Its colour halfway through the panic.
   CLOCK_PANIC_COLOR: '#ff4d6d', // Its colour at zero.
-  CLOCK_TREMBLE_MAX: 3,         // How far it shivers at zero. 0 = rock steady.
+  CLOCK_TREMBLE_MAX: 3,         // How far it shivers side to side at zero. 0 = no
+                                 // shiver — the per-second kick is a separate layer
+                                 // and still moves the clock vertically even at 0.
   CLOCK_TREMBLE_HZ: 11,         // How fast it shivers.
   CLOCK_KICK_UNITS: 4,          // How far it jumps on each tick. 0 = no jump.
   CLOCK_PULSE_SECONDS: 5,       // When the heartbeat starts.
