@@ -259,6 +259,27 @@ function runTests() {
   eq(kept.length, 1, 'pruneAsteroids drops the gone ones');
   eq(kept[0].x, 200, 'and keeps the live ones');
 
+  // ── findHit ──
+  var hs = { x: 100, y: 100 };
+  eq(P.findHit(hs, [{ x: 300, y: 300, radius: 8 }], CONFIG), -1, 'a distant rock does not hit');
+  eq(P.findHit(hs, [{ x: 300, y: 300, radius: 8 }, { x: 105, y: 100, radius: 8 }], CONFIG), 1,
+     'a touching rock returns its index');
+  eq(P.findHit(hs, [{ x: 100 + CONFIG.SHIP_RADIUS + 4.8 + 1, y: 100, radius: 4.8 }], CONFIG), -1,
+     'the smallest rock just out of reach does not hit');
+
+  // ── burst / stepParticles ──
+  var bits = P.burst(fakeRng([0.5]), 50, 60, '#fff', 8, CONFIG);
+  eq(bits.length, 8, 'burst makes the number of pieces asked for');
+  eq(bits[0].x, 50, 'pieces start where the burst happened');
+  eq(bits[0].color, '#fff', 'pieces take the colour they were given');
+  eq(bits[0].life > 0, true, 'pieces start with some life left');
+  var live = [{ x: 0, y: 0, vx: 10, vy: 10, life: 0.5, color: '#fff' }];
+  live = P.stepParticles(live, 0.25);
+  eq(live.length, 1, 'a piece with life left survives');
+  eq(live[0].x, 2.5, 'and moves');
+  near(live[0].life, 0.25, 'and loses life');
+  eq(P.stepParticles(live, 1).length, 0, 'a piece out of life is removed');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows

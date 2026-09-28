@@ -188,6 +188,45 @@ const Game = {
       return asteroids.filter(function (a) { return !Game.pure.isGone(a, cfg); });
     },
 
+    // Is the ship touching a rock? This is a point-in-time distance check, not
+    // a sweep — it is only reliable because MAX_FRAME_SECONDS keeps every step
+    // short enough that nothing can cross an asteroid between two checks.
+    findHit: function (ship, asteroids, cfg) {
+      for (let i = 0; i < asteroids.length; i++) {
+        if (Game.pure.circlesOverlap(ship.x, ship.y, cfg.SHIP_RADIUS,
+                                     asteroids[i].x, asteroids[i].y, asteroids[i].radius)) return i;
+      }
+      return -1;
+    },
+
+    // Scatter `count` little sparks from (x, y) in random directions.
+    burst: function (rng, x, y, color, count, cfg) {
+      const out = [];
+      for (let i = 0; i < count; i++) {
+        const dir = rng() * Math.PI * 2;
+        const speed = cfg.PARTICLE_SPEED * (0.4 + rng() * 0.6);
+        out.push({
+          x: x, y: y,
+          vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed,
+          life: cfg.PARTICLE_LIFE, color: color,
+        });
+      }
+      return out;
+    },
+
+    // Move and age every particle, dropping any that have run out of life.
+    stepParticles: function (particles, dt) {
+      const out = [];
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life > 0) out.push(p);
+      }
+      return out;
+    },
+
     // Turn rows of letters into a list of coloured pixels.
     parseSprite: function (rows, palette) {
       const pixels = [];
@@ -269,6 +308,10 @@ const Game = {
       asteroids: [],
       elapsed: 0,
       spawnTimer: 0,
+      lives: CONFIG.SHIP_LIVES,
+      invincibleFor: 0,
+      shake: 0,
+      particles: [],
     };
     P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
 
@@ -355,7 +398,16 @@ const Game = {
     }
 
     function draw() {
-      ctx.setTransform(state.scale, 0, 0, state.scale, 0, 0);
+      // A hit kicks the whole frame, not just the ship — otherwise the
+      // starfield would sit still while the foreground shook, which looks
+      // wrong. One setTransform call governs everything drawn below it.
+      let ox = 0, oy = 0;
+      if (state.shake > 0) {
+        const power = (state.shake / CONFIG.SHAKE_DECAY) * CONFIG.SHAKE_PIXELS;
+        ox = (Math.random() * 2 - 1) * power;
+        oy = (Math.random() * 2 - 1) * power;
+      }
+      ctx.setTransform(state.scale, 0, 0, state.scale, ox * state.scale, oy * state.scale);
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = '#10131c';
       ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
@@ -363,12 +415,20 @@ const Game = {
       for (let i = 0; i < state.crystals.length; i++) {
         Game._drawSprite(ctx, 'crystal', state.crystals[i].x, state.crystals[i].y, 0);
       }
-      Game._drawSprite(ctx, 'ship', state.ship.x, state.ship.y, 0);
+      // While invincible the ship flashes, so a hit is unmistakable.
+      const flashOff = state.invincibleFor > 0 &&
+        Math.floor(state.invincibleFor * CONFIG.BLINK_HZ * 2) % 2 === 1;
+      if (!flashOff) Game._drawSprite(ctx, 'ship', state.ship.x, state.ship.y, 0);
       for (let i = 0; i < state.asteroids.length; i++) {
         const a = state.asteroids[i];
         Game._drawSprite(ctx, 'rock' + a.size, a.x, a.y, a.angle);
       }
-      // Tasks 8-10 add particles and HUD here.
+      for (let i = 0; i < state.particles.length; i++) {
+        const p = state.particles[i];
+        ctx.fillStyle = p.color;
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
+      }
+      // Task 9 adds the hearts HUD here.
 
       ctx.fillStyle = '#e8e8ff';
       ctx.font = '10px monospace';
@@ -390,6 +450,8 @@ const Game = {
           state.crystals.splice(got, 1);
           state.score += CONFIG.CRYSTAL_POINTS;
           P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
+          state.particles = state.particles.concat(
+            P.burst(Math.random, state.ship.x, state.ship.y, '#ffe66d', CONFIG.PARTICLES_PER_COLLECT, CONFIG));
         }
         state.elapsed += dt;
         state.spawnTimer -= dt;
@@ -403,7 +465,21 @@ const Game = {
         }
         P.stepAsteroids(state.asteroids, dt);
         state.asteroids = P.pruneAsteroids(state.asteroids, CONFIG);
-        // Tasks 8-9 add hit detection and game-phase logic here.
+        state.invincibleFor = Math.max(0, state.invincibleFor - dt);
+        state.shake = Math.max(0, state.shake - dt);
+        if (state.invincibleFor === 0) {
+          const hitIndex = P.findHit(state.ship, state.asteroids, CONFIG);
+          if (hitIndex >= 0) {
+            state.lives -= 1;
+            state.invincibleFor = CONFIG.INVINCIBLE_SECONDS;
+            state.shake = CONFIG.SHAKE_DECAY;
+            state.particles = state.particles.concat(
+              P.burst(Math.random, state.ship.x, state.ship.y, '#ff4d6d', CONFIG.PARTICLES_PER_HIT, CONFIG));
+            state.asteroids.splice(hitIndex, 1);
+          }
+        }
+        state.particles = P.stepParticles(state.particles, dt);
+        // Task 9 adds game-phase logic (game over / heart HUD) here.
         draw();
       } catch (e) {
         window.__showError((e && e.stack) || String(e), 'game.js');

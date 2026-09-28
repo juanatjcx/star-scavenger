@@ -46,4 +46,15 @@ const CONFIG = {
                                    // the browser. Normal play peaks near 8.
   ASTEROID_MAX_LIFETIME: 20,       // Seconds before a stray rock is removed.
   ASTEROID_DESPAWN_MARGIN: 40,     // How far off screen they appear and disappear.
+
+  // ── Getting hit ──────────────────────────────────────────────
+  SHIP_LIVES: 3,           // How many hearts you start with.
+  INVINCIBLE_SECONDS: 1.5, // Free hits right after being hit.
+  BLINK_HZ: 10,            // How fast you flash while invincible.
+  SHAKE_PIXELS: 6,         // How hard the screen kicks on a hit. 0 = calm.
+  SHAKE_DECAY: 0.15,       // Seconds for the kick to settle.
+  PARTICLES_PER_COLLECT: 8,
+  PARTICLES_PER_HIT: 14,
+  PARTICLE_SPEED: 70,
+  PARTICLE_LIFE: 0.45,
 };
