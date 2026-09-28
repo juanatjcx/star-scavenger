@@ -7,8 +7,14 @@ copy of config.js, so you change a number, reload, and nothing happens - which
 is the worst thing that can happen in the middle of a lesson.
 """
 import http.server
+import os
 
 PORT = 8000
+
+# The files that matter for a live-reload check: anything a teacher would
+# edit mid-lesson. Not tests.html or serve.py itself — those aren't part of
+# the loop a projected class watches.
+WATCHED_FILES = ('config.js', 'sprites.js', 'game.js', 'index.html')
 
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
@@ -16,6 +22,25 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         # Never cache. Every reload must fetch the file you just edited.
         self.send_header('Cache-Control', 'no-store, must-revalidate')
         super().end_headers()
+
+    def do_GET(self):
+        # Auto-reload support for index.html: the page polls this once a
+        # second and reloads itself when the answer changes. It exists only
+        # to be polled from localhost — see the gate in index.html — so it
+        # stays this small: a single number as plain text, not JSON.
+        if self.path.split('?', 1)[0] == '/__changed':
+            latest = max(
+                (os.path.getmtime(f) for f in WATCHED_FILES if os.path.exists(f)),
+                default=0,
+            )
+            body = str(latest).encode('ascii')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        super().do_GET()
 
 
 if __name__ == '__main__':

@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# ship — the one deploy button for Star Scavenger.
+#
+#   ./ship "made the ship faster"   commit everything, push, wait, announce when live
+#   ./ship                          same, with a default commit message
+#   ./ship --undo                   revert the last deploy and put the old version back
+#   ./ship --dry-run "..."          show what it would do; touches nothing, pushes nothing
+#
+# Why this exists: GitHub Pages takes about 70 seconds to catch up after a
+# push. That's a real gap between "I pushed" and "the phones in the room are
+# showing the new version," and the honest thing to do with that gap is wait
+# and say so clearly, not print "done" and leave the teacher guessing.
+#
+# Scope note: the approved design for this script included a --test flag
+# that would run the full suite in tests.html. There's no way to run an
+# HTML-page test suite from a shell without either a dependency (a headless
+# browser) or fifty lines of DOM stubs standing in for `document` and
+# `canvas` — and this project's whole identity is zero dependencies. So this
+# script does not run tests. Step 2 below prints a reminder instead, and
+# stays out of the way otherwise.
+
+set -u -o pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$REPO_ROOT" || exit 1
+
+LIVE_URL="https://juanatjcx.github.io/star-scavenger/"
+CONFIG_URL="${LIVE_URL}config.js"
+POLL_INTERVAL=5
+POLL_TIMEOUT=240   # measured deploys are ~70s; this leaves real headroom before giving up
+
+DRY_RUN=0
+UNDO=0
+MESSAGE=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    --undo)    UNDO=1 ;;
+    *)         MESSAGE="$arg" ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# Step 1: syntax check, always, even for --undo. This is the one failure a
+# teacher's own eyes cannot catch under time pressure — a file that fails to
+# parse looks exactly like a file that just hasn't been saved yet. `node
+# --check` only parses, never runs the code, so this costs milliseconds.
+# ---------------------------------------------------------------------------
+syntax_ok=1
+for f in config.js sprites.js game.js; do
+  if ! err="$(node --check "$f" 2>&1)"; then
+    syntax_ok=0
+    echo "✗ $f does not parse:"
+    echo "$err" | sed 's/^/    /'
+  fi
+done
+if [ "$syntax_ok" = 0 ]; then
+  echo ""
+  echo "Nothing was committed. Fix the file named above and run ./ship again."
+  exit 1
+fi
+echo "✓ config.js, sprites.js, game.js all parse"
+
+if [ "$UNDO" = 1 ]; then
+  # ---------------------------------------------------------------------------
+  # --undo: put the previous version back with a new commit that reverts the
+  # last one, the same way a normal ship works, just in reverse. Never
+  # rewrites history, so it's safe even if a student's machine already
+  # pulled the commit being undone.
+  # ---------------------------------------------------------------------------
+  last_subject="$(git log -1 --pretty=%s HEAD)"
+  if [ "$DRY_RUN" = 1 ]; then
+    echo ""
+    echo "Would revert: \"$last_subject\""
+    echo "Would then push and wait for the reverted version to go live."
+    echo "Nothing changed."
+    exit 0
+  fi
+  echo ""
+  echo "Reverting: \"$last_subject\""
+  if ! git revert --no-edit HEAD; then
+    echo ""
+    echo "git revert failed, probably a conflict — git status will show you where. Resolve it by hand, or run 'git revert --abort' to back out and undo some other way."
+    exit 1
+  fi
+else
+  # ---------------------------------------------------------------------------
+  # Step 2: a reminder, not a gate — see the scope note at the top of this
+  # file for why there's no --test flag that actually runs tests.html.
+  # ---------------------------------------------------------------------------
+  if ! git diff --quiet HEAD -- game.js index.html tests.html 2>/dev/null; then
+    echo "Reminder: game.js, index.html, or tests.html changed — worth a quick look at tests.html before you ship. Not required, not blocking."
+  fi
+
+  if [ -z "$(git status --porcelain)" ]; then
+    echo "Nothing to ship — the working tree already matches the last commit."
+    exit 0
+  fi
+
+  if [ -z "$MESSAGE" ]; then
+    MESSAGE="chore: classroom tweaks"
+  fi
+
+  if [ "$DRY_RUN" = 1 ]; then
+    echo ""
+    echo "Would commit as: \"$MESSAGE\""
+    echo "Files:"
+    git status --porcelain | sed 's/^/  /'
+    echo ""
+    echo "Would then push to main and wait for it to go live. Nothing changed."
+    exit 0
+  fi
+
+  # -------------------------------------------------------------------------
+  # Step 3: commit everything, push.
+  # -------------------------------------------------------------------------
+  echo ""
+  git add -A
+  if ! git commit -m "$MESSAGE"; then
+    echo "git commit failed — see the message above. Nothing was pushed."
+    exit 1
+  fi
+fi
+
+echo ""
+echo "Pushing to main..."
+if ! git push origin HEAD:main; then
+  echo ""
+  echo "git push failed — see above. The commit is still here locally; fix the problem (often just 'git pull --rebase') and run ./ship again, or push by hand."
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Step 4: wait until the new version is actually being served. HTTP 200
+# alone isn't proof of that — GitHub Pages can keep answering 200 with the
+# OLD file while the new one is still propagating. Comparing the deployed
+# config.js byte-for-byte against the local one is what turns "a server
+# answered" into "the new version is live."
+# ---------------------------------------------------------------------------
+echo "Waiting for $LIVE_URL to catch up (usually about 70 seconds)..."
+local_config="$(cat config.js)"
+start=$SECONDS
+while (( SECONDS - start < POLL_TIMEOUT )); do
+  remote="$(curl -fsS "${CONFIG_URL}?_=$(date +%s%N)" 2>/dev/null)" || remote=""
+  if [ -n "$remote" ] && [ "$remote" = "$local_config" ]; then
+    elapsed=$(( SECONDS - start ))
+    echo ""
+    echo "LIVE: $LIVE_URL  (${elapsed}s after push)"
+    exit 0
+  fi
+  sleep "$POLL_INTERVAL"
+done
+echo ""
+echo "Gave up after ${POLL_TIMEOUT}s — GitHub Pages may still be catching up on its own. Check $LIVE_URL yourself before telling the class it's ready."
+exit 1

@@ -15,16 +15,25 @@ Jump to: [Before class](#before-class) · [Opening](#opening) ·
 3. Have `https://juanatjcx.github.io/star-scavenger/` on the board for phones
    (once it's live — see the README).
 4. Reload `http://localhost:8000/index.html` once yourself before anyone
-   arrives, just to see a clean, error-free start.
+   arrives, just to see a clean, error-free start. From here on, the page
+   reloads itself within a second or two of you saving a file — you
+   shouldn't need to touch the browser again.
 5. On a 1366×768 laptop or a 1024×768 projector the game renders at a fixed
    400×400 in the middle of the screen, with black around it — that's by
    design, not a bug. If it looks small, zoom the browser to 200% (Cmd/Ctrl
    and `+`): it roughly doubles the projected size for free. At 1920×1080 or
    larger this never comes up.
+6. Ship at the natural breaks in the lesson — end of a tier, end of class —
+   with `./ship "what changed"` from a Terminal in this folder. It commits,
+   pushes, and tells you when the new version is live for the phones in the
+   room (about a minute). If a change turns out to have made things worse,
+   `./ship --undo` puts the previous version back the same way.
 
 The loop for the whole lesson: **a student suggests something → you change one
-number → you save → you reload the browser → the room reacts.** Keep it to one
-change at a time. The reaction is the lesson.
+number → you save → the room reacts** — the browser on the projector reloads
+itself, no click required. Keep it to one change at a time. The reaction is
+the lesson. Shipping is a separate, occasional step: the room is watching
+`localhost`, so nothing needs to go live until you choose a moment for it to.
 
 <a id="opening"></a>
 ## Opening, about 60 seconds

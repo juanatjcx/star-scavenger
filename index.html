@@ -86,5 +86,34 @@
     window.__showError(stack || String(e), match ? match[1] : '');
   }
 </script>
+<script>
+  // Auto-reload while working locally: poll serve.py for the most recent
+  // edit and reload the instant it changes, so the loop is save -> the room
+  // sees it, with nobody touching the browser.
+  //
+  // Gated to localhost/127.0.0.1 on purpose, not just because the endpoint
+  // only exists there. A security review of this project established that
+  // the published game makes NO network requests at all — that's a property
+  // worth keeping true, and this check is what keeps it true.
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    var __lastChanged = null;
+    setInterval(function () {
+      fetch('/__changed', { cache: 'no-store' })
+        .then(function (r) { return r.text(); })
+        .then(function (text) {
+          if (__lastChanged === null) { __lastChanged = text; return; }
+          if (text !== __lastChanged) { location.reload(); }
+        })
+        .catch(function () {
+          // The server isn't there (Terminal closed, or not started yet).
+          // Swallow it. An unhandled rejection here would reach the
+          // window listener above and paint a red error panel over a game
+          // that is otherwise perfectly fine — AudioContext.resume() caused
+          // this exact bug once already; this is the same mistake waiting
+          // to happen again if this catch is ever removed.
+        });
+    }, 1000);
+  }
+</script>
 </body>
 </html>
