@@ -36,4 +36,14 @@ const CONFIG = {
   CRYSTAL_MIN_FROM_SHIP: 40,    // So one never appears in your lap.
   CRYSTAL_MIN_FROM_CRYSTAL: 25, // So five never stack into one blob.
   SPAWN_TRIES: 30,         // How hard we try for a good spot before giving up.
+
+  // ── Asteroids: the things that hurt ──────────────────────────
+  ASTEROID_SIZES: [12, 20, 28],    // Small, medium, big. Sprite names match.
+  ASTEROID_RADIUS_FACTOR: 0.4,     // Hit zone as a share of size. Smaller = kinder.
+  ASTEROID_JITTER_DEG: 30,         // How crooked their paths are. 0 = straight lines.
+  ASTEROID_SPIN_DEG: 90,           // How fast they tumble. Looks only.
+  ASTEROID_MAX_ALIVE: 20,          // Hard ceiling. Stops a silly spawn rate freezing
+                                   // the browser. Normal play peaks near 8.
+  ASTEROID_MAX_LIFETIME: 20,       // Seconds before a stray rock is removed.
+  ASTEROID_DESPAWN_MARGIN: 40,     // How far off screen they appear and disappear.
 };

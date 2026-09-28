@@ -138,6 +138,56 @@ const Game = {
       return -1;
     },
 
+    // Put a new rock just off one edge, pointed roughly across the arena.
+    // "Roughly" is the jitter: without it every rock flies in a straight line
+    // and the game is boring.
+    pickAsteroidSpawn: function (rng, elapsed, cfg) {
+      const hard = Game.pure.difficultyAt(elapsed, cfg);
+      const edge = Math.min(3, Math.floor(rng() * 4));   // 0 top, 1 right, 2 bottom, 3 left
+      const along = rng() * cfg.ARENA;
+      const sizes = cfg.ASTEROID_SIZES;
+      const size = sizes[Math.min(sizes.length - 1, Math.floor(rng() * sizes.length))];
+      const jitter = (rng() * 2 - 1) * cfg.ASTEROID_JITTER_DEG * Math.PI / 180;
+      const spin = (rng() * 2 - 1) * cfg.ASTEROID_SPIN_DEG * Math.PI / 180;
+      const m = cfg.ASTEROID_DESPAWN_MARGIN;
+
+      let x, y, heading;
+      if (edge === 0)      { x = along;          y = -m;             heading = Math.PI / 2; }
+      else if (edge === 1) { x = cfg.ARENA + m;  y = along;          heading = Math.PI; }
+      else if (edge === 2) { x = along;          y = cfg.ARENA + m;  heading = -Math.PI / 2; }
+      else                 { x = -m;             y = along;          heading = 0; }
+      heading += jitter;
+
+      return {
+        x: x, y: y,
+        vx: Math.cos(heading) * hard.speed,
+        vy: Math.sin(heading) * hard.speed,
+        size: size,
+        radius: size * cfg.ASTEROID_RADIUS_FACTOR,
+        angle: 0, spin: spin, age: 0,
+      };
+    },
+
+    stepAsteroids: function (asteroids, dt) {
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        a.x += a.vx * dt;
+        a.y += a.vy * dt;
+        a.angle += a.spin * dt;
+        a.age += dt;
+      }
+    },
+
+    isGone: function (a, cfg) {
+      const m = cfg.ASTEROID_DESPAWN_MARGIN;
+      if (a.age > cfg.ASTEROID_MAX_LIFETIME) return true;
+      return a.x < -m || a.x > cfg.ARENA + m || a.y < -m || a.y > cfg.ARENA + m;
+    },
+
+    pruneAsteroids: function (asteroids, cfg) {
+      return asteroids.filter(function (a) { return !Game.pure.isGone(a, cfg); });
+    },
+
     // Turn rows of letters into a list of coloured pixels.
     parseSprite: function (rows, palette) {
       const pixels = [];
@@ -216,6 +266,9 @@ const Game = {
       ship: { x: CONFIG.ARENA / 2, y: CONFIG.ARENA / 2 },
       crystals: [],
       score: 0,
+      asteroids: [],
+      elapsed: 0,
+      spawnTimer: 0,
     };
     P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
 
@@ -311,7 +364,11 @@ const Game = {
         Game._drawSprite(ctx, 'crystal', state.crystals[i].x, state.crystals[i].y, 0);
       }
       Game._drawSprite(ctx, 'ship', state.ship.x, state.ship.y, 0);
-      // Tasks 7-10 add asteroids, particles, and HUD here.
+      for (let i = 0; i < state.asteroids.length; i++) {
+        const a = state.asteroids[i];
+        Game._drawSprite(ctx, 'rock' + a.size, a.x, a.y, a.angle);
+      }
+      // Tasks 8-10 add particles and HUD here.
 
       ctx.fillStyle = '#e8e8ff';
       ctx.font = '10px monospace';
@@ -334,7 +391,19 @@ const Game = {
           state.score += CONFIG.CRYSTAL_POINTS;
           P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
         }
-        // Tasks 7-9 add spawning and game-phase logic here.
+        state.elapsed += dt;
+        state.spawnTimer -= dt;
+        if (state.spawnTimer <= 0) {
+          state.spawnTimer = P.difficultyAt(state.elapsed, CONFIG).spawnInterval;
+          // The cap exists so that setting the spawn interval to 0.01 in front of
+          // a class slows the game down instead of killing the tab.
+          if (state.asteroids.length < CONFIG.ASTEROID_MAX_ALIVE) {
+            state.asteroids.push(P.pickAsteroidSpawn(Math.random, state.elapsed, CONFIG));
+          }
+        }
+        P.stepAsteroids(state.asteroids, dt);
+        state.asteroids = P.pruneAsteroids(state.asteroids, CONFIG);
+        // Tasks 8-9 add hit detection and game-phase logic here.
         draw();
       } catch (e) {
         window.__showError((e && e.stack) || String(e), 'game.js');

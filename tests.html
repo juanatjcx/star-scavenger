@@ -215,6 +215,50 @@ function runTests() {
   eq(P.findCollected(ship2, [{ x: 300, y: 300 }], CONFIG), -1, 'a distant crystal is not collected');
   eq(P.findCollected(ship2, [{ x: 300, y: 300 }, { x: 52, y: 50 }], CONFIG), 1, 'a touching crystal returns its index');
 
+  // ── pickAsteroidSpawn ──
+  // rng order: edge, along, size, jitter, spin. edge 0 = top.
+  var aTop = P.pickAsteroidSpawn(fakeRng([0, 0.5, 0, 0.5, 0.5]), 0, CONFIG);
+  eq(aTop.y, -CONFIG.ASTEROID_DESPAWN_MARGIN, 'edge 0 spawns above the arena, off screen');
+  eq(aTop.x, 200, 'and halfway across it');
+  eq(aTop.vy > 0, true, 'a rock from the top flies downwards, into the arena');
+  near(Math.sqrt(aTop.vx * aTop.vx + aTop.vy * aTop.vy), CONFIG.ASTEROID_SPEED_START,
+       'at 0s a rock travels at ASTEROID_SPEED_START', 1e-6);
+  var aRight = P.pickAsteroidSpawn(fakeRng([0.3, 0.5, 0, 0.5, 0.5]), 0, CONFIG);
+  eq(aRight.x, CONFIG.ARENA + CONFIG.ASTEROID_DESPAWN_MARGIN, 'edge 1 spawns right of the arena');
+  eq(aRight.vx < 0, true, 'a rock from the right flies leftwards');
+  var aBottom = P.pickAsteroidSpawn(fakeRng([0.6, 0.5, 0, 0.5, 0.5]), 0, CONFIG);
+  eq(aBottom.vy < 0, true, 'a rock from the bottom flies upwards');
+  var aLeft = P.pickAsteroidSpawn(fakeRng([0.9, 0.5, 0, 0.5, 0.5]), 0, CONFIG);
+  eq(aLeft.vx > 0, true, 'a rock from the left flies rightwards');
+  var aEnd = P.pickAsteroidSpawn(fakeRng([0, 0.5, 0, 0.5, 0.5]), CONFIG.SURVIVE_SECONDS, CONFIG);
+  near(Math.sqrt(aEnd.vx * aEnd.vx + aEnd.vy * aEnd.vy), CONFIG.ASTEROID_SPEED_END,
+       'by the end of the run rocks travel at ASTEROID_SPEED_END', 1e-6);
+  var aMax = P.pickAsteroidSpawn(fakeRng([1, 1, 1, 1, 1]), 0, CONFIG);
+  eq(aMax.size, CONFIG.ASTEROID_SIZES[CONFIG.ASTEROID_SIZES.length - 1],
+     'an rng of exactly 1 picks the last size rather than running off the end of the list');
+  eq(aMax.radius, CONFIG.ASTEROID_SIZES[2] * CONFIG.ASTEROID_RADIUS_FACTOR, 'radius comes from size');
+  eq(aMax.age, 0, 'a new rock has no age yet');
+
+  // ── stepAsteroids ──
+  var rocks = [{ x: 10, y: 10, vx: 100, vy: -50, angle: 0, spin: 2, age: 0 }];
+  P.stepAsteroids(rocks, 0.5);
+  eq(rocks[0].x, 60, 'a rock moves by its velocity');
+  eq(rocks[0].y, -15, 'on both axes');
+  eq(rocks[0].angle, 1, 'and spins');
+  eq(rocks[0].age, 0.5, 'and remembers how long it has been alive');
+
+  // ── isGone / pruneAsteroids ──
+  var m = CONFIG.ASTEROID_DESPAWN_MARGIN;
+  eq(P.isGone({ x: 200, y: 200, age: 0 }, CONFIG), false, 'a rock inside the arena stays');
+  eq(P.isGone({ x: 200, y: -m - 1, age: 0 }, CONFIG), true, 'a rock past the top edge is gone');
+  eq(P.isGone({ x: CONFIG.ARENA + m + 1, y: 200, age: 0 }, CONFIG), true, 'a rock past the right edge is gone');
+  eq(P.isGone({ x: -m - 1, y: 200, age: 0 }, CONFIG), true, 'a rock past the left edge is gone — jitter means it is often not the opposite side');
+  eq(P.isGone({ x: 200, y: 200, age: CONFIG.ASTEROID_MAX_LIFETIME + 1 }, CONFIG), true,
+     'a rock drifting almost parallel to an edge is removed by age, so it cannot loiter forever');
+  var kept = P.pruneAsteroids([{ x: 200, y: 200, age: 0 }, { x: 999, y: 200, age: 0 }], CONFIG);
+  eq(kept.length, 1, 'pruneAsteroids drops the gone ones');
+  eq(kept[0].x, 200, 'and keeps the live ones');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows
