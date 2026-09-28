@@ -296,8 +296,35 @@ function runTests() {
   eq(P.finalScore(0, CONFIG), CONFIG.WIN_BONUS, 'surviving with nothing collected still pays the bonus');
 
   // ── the high score store survives a hostile browser ──
-  eq(typeof Game._loadHighScore(), 'number', 'the high score always reads back as a number');
-  eq(Game._loadHighScore() >= 0, true, 'and is never negative, even on a fresh browser');
+  // Force each bad case rather than reading whatever this browser happens to
+  // hold — otherwise these assertions pass no matter what _loadHighScore does.
+  var storeKey = Game._STORE_KEY;
+  var savedBest = null;
+  try { savedBest = localStorage.getItem(storeKey); } catch (e) { /* ignore */ }
+  function bestAfterStoring(value) {
+    try {
+      if (value === null) localStorage.removeItem(storeKey);
+      else localStorage.setItem(storeKey, value);
+    } catch (e) { /* ignore */ }
+    return Game._loadHighScore();
+  }
+  eq(bestAfterStoring(null), 0, 'a browser with no saved score reads back 0');
+  eq(bestAfterStoring('abc'), 0, 'a nonsense saved score reads back 0, not NaN');
+  eq(bestAfterStoring('-5'), 0, 'a negative saved score reads back 0');
+  eq(bestAfterStoring('42'), 42, 'a real saved score reads back as a number');
+  try {
+    if (savedBest === null) localStorage.removeItem(storeKey);
+    else localStorage.setItem(storeKey, savedBest);
+  } catch (e) { /* ignore */ }
+
+  // A browser that refuses storage entirely must not take the game down.
+  var realGetItem = localStorage.getItem;
+  try {
+    localStorage.getItem = function () { throw new Error('storage blocked'); };
+    eq(Game._loadHighScore(), 0, 'a browser that refuses storage gives 0 rather than crashing');
+  } finally {
+    localStorage.getItem = realGetItem;
+  }
 
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.

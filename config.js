@@ -61,5 +61,5 @@ const CONFIG = {
   PARTICLE_LIFE: 0.45,       // Seconds a spark lives before fading out.
 
   // ── Winning ──────────────────────────────────────────────────
-  WIN_BONUS: 100,          // Extra points for surviving the whole minute.
+  WIN_BONUS: 100,          // Extra points for lasting the whole run.
 };

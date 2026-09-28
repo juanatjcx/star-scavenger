@@ -359,6 +359,11 @@ const Game = {
       state.shake = 0;
       P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
       state.phase = 'playing';
+
+      // Forget any drag in progress. Without this, a tap that dismisses an end
+      // screen could carry a finger-to-ship gap measured against the ship's old
+      // position, and the ship would leap the moment the finger moved.
+      input.touch = null;
     }
 
     // Title, win and lose screens all restart on any key or tap — there is no
