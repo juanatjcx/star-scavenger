@@ -18,7 +18,7 @@ Every task's requirements implicitly include all of these. Values are copied ver
 - **Classic script tags only**, loaded in this order: `config.js` → `sprites.js` → `game.js`. They share one global lexical scope, so every top-level `const` name must be unique across all three files.
 - **Every gameplay number lives in `CONFIG` in `config.js`.** No gameplay constant may be hardcoded in `game.js`. This is the project's whole purpose; a magic number in `game.js` is a defect.
 - **Arena is 400 × 400 logical units.** All entity coordinates are in logical units, never pixels.
-- **Frame delta is clamped to 0.025 s (25 ms).** Not 50 — at 50 ms a head-on ship and asteroid close 18.0 px against a 10.8 px combined radius and pass through each other.
+- **Frame delta is clamped to 0.025 s (25 ms).** Not 50. The collision check is a point-in-time distance test, so a fast pass can step over the overlap entirely — but only on a *grazing* trajectory, not a head-on one. At 50 ms (18 units per step) any pass with a perpendicular offset above 5.97 units can be missed, roughly 45% of approaches; at 25 ms (9 units) only offsets above 9.82 units can, which are barely hits at all.
 - **Canvas scale is an integer**, remainder letterboxed. Fractional scale plus disabled smoothing renders some source pixels 2 physical pixels wide and others 3.
 - **Error handlers are installed in an inline `<script>` at the top of `index.html`**, never in `game.js`. A script that fails to parse never runs any of its own lines.
 - **`game.js` must not start itself.** It defines `Game` and nothing else executes; `index.html` calls `Game.start(canvas)`. This is what lets `tests.html` load it.

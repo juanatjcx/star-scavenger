@@ -208,10 +208,16 @@ In a classroom, failure is public, so error handling is a feature:
   is what broke. Verified.
 - An unknown sprite name draws a magenta box and warns once, rather than throwing — the
   game keeps running and the typo is unmistakable.
-- `dt` is clamped to **25 ms**, not 50. At 50 ms a head-on ship and asteroid close
-  220 + 140 = 360 px/s × 0.05 = 18.0 px in one frame, against a smallest combined radius of
-  6 + 4.8 = 10.8 px — the collision check is a point-in-time distance test, so the ship
-  passes clean through the rock and takes no damage. 25 ms closes 9.0 px and is safe.
+- `dt` is clamped to **25 ms**, not 50, because the collision check is a point-in-time
+  distance test rather than a swept one. The failure it prevents is a *grazing* pass, not a
+  head-on one: a dead-centre approach is inside the overlap region for 2R = 21.6 px of
+  travel, which no 18 px step can skip. But a trajectory passing at perpendicular offset
+  `d` crosses a chord of only `2√(R² − d²)`, and it tunnels whenever that chord is shorter
+  than one step. At 50 ms (18 px/step) every offset above 5.97 px is vulnerable — about 45%
+  of the possible approaches, measured at 19% of phases missing at d = 8 and 34% at d = 9.
+  At 25 ms (9 px/step) the vulnerable band shrinks to offsets above 9.82 px, under 10% of
+  approaches, and those are grazes that barely register as hits. Measured, after an earlier
+  draft of this document got the reasoning wrong.
   Consequence: below 40 fps the game runs in slow motion rather than skipping collisions,
   which is the correct failure direction here.
 - The live asteroid cap is **20**, not 40. The difficulty curve peaks at ~8 alive (82
@@ -303,7 +309,7 @@ from a real Chrome via DevTools, loading multi-file test pages over both `file:/
 | `window.onerror` shows what broke | same page on `file://` vs `http://` | **Refuted on `file://`** — `"Script error."`, no filename; full `"Uncaught SyntaxError: Unexpected token ';'"` + filename over `http://`. Chrome: "`file:` URLs are treated as unique security origins" |
 | `try/catch` also loses detail on `file://` | `ReferenceError` thrown inside a called function | **Refuted** — full `"ReferenceError: MISSING_CONFIG_VALUE is not defined"` plus a stack. This is why `try/catch` is the primary mechanism |
 | A handler inside `game.js` catches `game.js`'s own parse error | handler assigned *above* a syntax error in the same file | **Refuted** — the flag was never set; the line never ran |
-| 50 ms `dt` clamp prevents tunnelling | closing speed x clamp vs. smallest combined radius | **Refuted** — 18.0 px vs 10.8 px. 25 ms gives 9.0 px, safe |
+| 50 ms `dt` clamp prevents tunnelling | swept the relative trajectory past the rock at many offsets and sub-step phases, at both clamps | **Refuted, but not for the reason first given** — a dead-centre head-on cannot tunnel at either clamp (the overlap window is 2R = 21.6 px, wider than an 18 px step). Tunnelling is a grazing effect: at 50 ms, offsets above 5.97 px are vulnerable (19% of phases miss at d = 8, 34% at d = 9); at 25 ms only offsets above 9.82 px are, and 0% miss at d ≤ 9 |
 | A cap of 40 live asteroids is a useful safety valve | simulated the spawn/speed curves over 60 s | **Refuted** — peak ~8 alive, 82 spawned total; cap lowered to 20 |
 | Phaser 3 is "~1MB" | jsDelivr headers, v3.90.0 | **Partly** — 1,196,122 raw but 318,115 gzipped; argument reframed |
 | Kaplay is the renamed Kaboom.js | npm registry metadata | **Confirmed** — kaplay 3001.0.19, "formerly known as Kaboom.js" |
