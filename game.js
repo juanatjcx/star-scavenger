@@ -369,6 +369,42 @@ const Game = {
     ctx.restore();
   },
 
+  _audio: null,
+
+  // Two synthesised blips, made with maths — there are no sound files. Browsers
+  // refuse to make noise before the user interacts with the page, so the audio
+  // context is built lazily on the first beep, never at load. No sound must
+  // never mean no game: every path here is wrapped so a failure is silent.
+  _beep: function (hz, ms) {
+    if (!CONFIG.SOUND_ON) return;
+    try {
+      if (!Game._audio) {
+        const Ctor = window.AudioContext || window.webkitAudioContext;
+        if (!Ctor) return;           // no WebAudio at all: play on in silence
+        Game._audio = new Ctor();
+      }
+      const ac = Game._audio;
+      if (ac.state === 'suspended') ac.resume();
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = 'square';
+      osc.frequency.value = hz;
+      // Anchor the starting value explicitly before the ramp: an exponential
+      // ramp continues from whatever value is *scheduled* at the current
+      // time, and a plain assignment to gain.gain.value doesn't schedule
+      // anything — skip this and the blip can end in an audible click.
+      gain.gain.setValueAtTime(CONFIG.SOUND_VOLUME, ac.currentTime);
+      // Fade out, or the blip ends in a click.
+      gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + ms / 1000);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start();
+      osc.stop(ac.currentTime + ms / 1000);
+    } catch (e) {
+      // No sound must never mean no game.
+    }
+  },
+
   start: function (canvas) {
     const ctx = canvas.getContext('2d');
     const P = Game.pure;
@@ -613,6 +649,7 @@ const Game = {
             P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
             state.particles = state.particles.concat(
               P.burst(Math.random, state.ship.x, state.ship.y, '#ffe66d', CONFIG.PARTICLES_PER_COLLECT, CONFIG));
+            Game._beep(CONFIG.COLLECT_HZ, CONFIG.COLLECT_MS);
           }
           state.elapsed += dt;
           state.spawnTimer -= dt;
@@ -636,6 +673,7 @@ const Game = {
               state.shake = CONFIG.SHAKE_DECAY;
               state.particles = state.particles.concat(
                 P.burst(Math.random, state.ship.x, state.ship.y, '#ff4d6d', CONFIG.PARTICLES_PER_HIT, CONFIG));
+              Game._beep(CONFIG.HIT_HZ, CONFIG.HIT_MS);
               state.asteroids.splice(hitIndex, 1);
             }
           }

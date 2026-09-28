@@ -77,4 +77,12 @@ const CONFIG = {
   CLOCK_PULSE_MAX: 1.25,        // How much it swells on each beat. 1 = no beat.
   CLOCK_PULSE_HZ_START: 2,      // Beats per second when the heartbeat begins...
   CLOCK_PULSE_HZ_END: 5,        // ...and by the time it reaches zero.
+
+  // ── Sound (made by maths, there are no sound files) ──────────
+  SOUND_ON: true,          // Set to false for a silent classroom.
+  COLLECT_HZ: 880,         // Pitch of the collect blip. Higher = squeakier.
+  COLLECT_MS: 60,
+  HIT_HZ: 140,             // Pitch of the hit thud.
+  HIT_MS: 180,
+  SOUND_VOLUME: 0.06,      // Keep this low. It will be on a projector.
 };
