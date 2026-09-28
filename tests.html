@@ -187,6 +187,34 @@ function runTests() {
   eq(edge2.x, CONFIG.SHIP_RADIUS, 'the ship stops at the left wall');
   eq(edge2.y, CONFIG.SHIP_RADIUS, 'the ship stops at the top wall');
 
+  // ── pickCrystalSpawn ──
+  var sp1 = P.pickCrystalSpawn(fakeRng([0, 0]), { x: 200, y: 200 }, [], CONFIG);
+  eq(sp1.x, CONFIG.CRYSTAL_WALL_MARGIN, 'rng 0 puts a crystal at the left margin, never in the wall');
+  eq(sp1.y, CONFIG.CRYSTAL_WALL_MARGIN, 'rng 0 puts a crystal at the top margin');
+  var sp2 = P.pickCrystalSpawn(fakeRng([1, 1]), { x: 200, y: 200 }, [], CONFIG);
+  eq(sp2.x, CONFIG.ARENA - CONFIG.CRYSTAL_WALL_MARGIN, 'rng 1 stays inside the right margin');
+  // rng 0.5 lands on the ship, so the first try must be rejected and the second used.
+  var sp3 = P.pickCrystalSpawn(fakeRng([0.5, 0.5, 0, 0]), { x: 200, y: 200 }, [], CONFIG);
+  eq(sp3.x === 200 && sp3.y === 200, false, 'a crystal never spawns on top of the ship');
+  var crowded = [{ x: CONFIG.CRYSTAL_WALL_MARGIN, y: CONFIG.CRYSTAL_WALL_MARGIN }];
+  var sp4 = P.pickCrystalSpawn(fakeRng([0, 0, 1, 1]), { x: 200, y: 200 }, crowded, CONFIG);
+  eq(sp4.x === CONFIG.CRYSTAL_WALL_MARGIN && sp4.y === CONFIG.CRYSTAL_WALL_MARGIN, false,
+     'a crystal never spawns on top of another crystal');
+  var stubborn = P.pickCrystalSpawn(fakeRng([0.5]), { x: 200, y: 200 }, [], CONFIG);
+  eq(typeof stubborn.x, 'number', 'when every try is rejected it still returns a position rather than hanging');
+
+  // ── refillCrystals ──
+  var cry = [];
+  P.refillCrystals(cry, fakeRng([0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9, 0.15, 0.85]), { x: 200, y: 200 }, CONFIG);
+  eq(cry.length, CONFIG.CRYSTALS_ON_SCREEN, 'refill tops the field up to CRYSTALS_ON_SCREEN');
+  P.refillCrystals(cry, fakeRng([0.1]), { x: 200, y: 200 }, CONFIG);
+  eq(cry.length, CONFIG.CRYSTALS_ON_SCREEN, 'refill adds nothing when the field is already full');
+
+  // ── findCollected ──
+  var ship2 = { x: 50, y: 50 };
+  eq(P.findCollected(ship2, [{ x: 300, y: 300 }], CONFIG), -1, 'a distant crystal is not collected');
+  eq(P.findCollected(ship2, [{ x: 300, y: 300 }, { x: 52, y: 50 }], CONFIG), 1, 'a touching crystal returns its index');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows

@@ -100,6 +100,44 @@ const Game = {
       ship.y = Game.pure.clamp(ship.y + aim.dy * cfg.SHIP_SPEED * dt, edge, cfg.ARENA - edge);
     },
 
+    // Find somewhere fair to put a crystal: away from the walls, away from the
+    // ship, and away from the other crystals. If we can't after SPAWN_TRIES
+    // goes, we take the last spot we looked at — a slightly awkward crystal is
+    // much better than a frozen game.
+    pickCrystalSpawn: function (rng, ship, existing, cfg) {
+      const m = cfg.CRYSTAL_WALL_MARGIN;
+      const span = cfg.ARENA - m * 2;
+      let candidate = { x: m, y: m };
+      for (let tries = 0; tries < cfg.SPAWN_TRIES; tries++) {
+        candidate = { x: m + rng() * span, y: m + rng() * span };
+        const dxs = candidate.x - ship.x;
+        const dys = candidate.y - ship.y;
+        if (Math.sqrt(dxs * dxs + dys * dys) < cfg.CRYSTAL_MIN_FROM_SHIP) continue;
+        let clash = false;
+        for (let i = 0; i < existing.length; i++) {
+          const dx = candidate.x - existing[i].x;
+          const dy = candidate.y - existing[i].y;
+          if (Math.sqrt(dx * dx + dy * dy) < cfg.CRYSTAL_MIN_FROM_CRYSTAL) { clash = true; break; }
+        }
+        if (!clash) return candidate;
+      }
+      return candidate;
+    },
+
+    refillCrystals: function (crystals, rng, ship, cfg) {
+      while (crystals.length < cfg.CRYSTALS_ON_SCREEN) {
+        crystals.push(Game.pure.pickCrystalSpawn(rng, ship, crystals, cfg));
+      }
+    },
+
+    findCollected: function (ship, crystals, cfg) {
+      for (let i = 0; i < crystals.length; i++) {
+        if (Game.pure.circlesOverlap(ship.x, ship.y, cfg.SHIP_RADIUS,
+                                     crystals[i].x, crystals[i].y, cfg.CRYSTAL_RADIUS)) return i;
+      }
+      return -1;
+    },
+
     // Turn rows of letters into a list of coloured pixels.
     parseSprite: function (rows, palette) {
       const pixels = [];
@@ -176,7 +214,10 @@ const Game = {
       stars: P.makeStars(Math.random, CONFIG),
       scale: 1,
       ship: { x: CONFIG.ARENA / 2, y: CONFIG.ARENA / 2 },
+      crystals: [],
+      score: 0,
     };
+    P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
 
     // ── Input. Keyboard and touch both end up in here, so there is exactly
     //    one place to look when the controls misbehave. ──
@@ -266,8 +307,15 @@ const Game = {
       ctx.fillStyle = '#10131c';
       ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
       drawStars(ctx, state.stars);
+      for (let i = 0; i < state.crystals.length; i++) {
+        Game._drawSprite(ctx, 'crystal', state.crystals[i].x, state.crystals[i].y, 0);
+      }
       Game._drawSprite(ctx, 'ship', state.ship.x, state.ship.y, 0);
-      // Tasks 6-10 add crystals, asteroids, particles, and HUD here.
+      // Tasks 7-10 add asteroids, particles, and HUD here.
+
+      ctx.fillStyle = '#e8e8ff';
+      ctx.font = '10px monospace';
+      ctx.fillText('SCORE ' + state.score, 6, 12);
     }
 
     let last = performance.now();
@@ -280,7 +328,13 @@ const Game = {
       try {
         P.scrollStars(state.stars, dt, CONFIG);
         P.stepShip(state.ship, currentAim(dt), dt, CONFIG);
-        // Tasks 6-9 add spawning and game-phase logic here.
+        const got = P.findCollected(state.ship, state.crystals, CONFIG);
+        if (got >= 0) {
+          state.crystals.splice(got, 1);
+          state.score += CONFIG.CRYSTAL_POINTS;
+          P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
+        }
+        // Tasks 7-9 add spawning and game-phase logic here.
         draw();
       } catch (e) {
         window.__showError((e && e.stack) || String(e), 'game.js');
