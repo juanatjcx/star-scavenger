@@ -34,10 +34,10 @@ const SPRITES = {
     '..WBBBDDDDBBBW..',
     '..WBDDBDDBDDBW..',
     '.WBBDD.DD.DDBBW.',
-    '.WBD....F....DBW',
-    '..W....FFF....W.',
-    '.......FFF......',
-    '........F.......',
+    '.WBD...FF...DBW.',
+    '..W...FFFF...W..',
+    '......FFFF......',
+    '.......FF.......',
   ],
 
   // 8 x 8. The thing you want.

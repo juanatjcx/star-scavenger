@@ -142,6 +142,22 @@ function runTests() {
   eq(SPRITES.rock20.length, 20, 'rock20 is 20 rows tall, matching its name');
   eq(SPRITES.rock28.length, 28, 'rock28 is 28 rows tall, matching its name');
 
+  // A sprite whose rows are not all the same length must complain loudly.
+  SPRITES.__ragged = ['..', '...'];
+  var raggedThrew = false, raggedMsg = '';
+  try { Game._spriteCanvas('__ragged'); } catch (e) { raggedThrew = true; raggedMsg = e.message; }
+  eq(raggedThrew, true, 'a sprite with rows of different lengths throws instead of losing pixels');
+  eq(raggedMsg.indexOf('__ragged') >= 0, true, 'and the error names the sprite');
+  eq(raggedMsg.indexOf('row 1') >= 0, true, 'and says which row is the wrong length');
+  SPRITES.__empty = [];
+  var emptyThrew = false;
+  try { Game._spriteCanvas('__empty'); } catch (e) { emptyThrew = true; }
+  eq(emptyThrew, true, 'an empty sprite gives a readable error, not a raw TypeError');
+  delete SPRITES.__ragged;
+  delete SPRITES.__empty;
+  delete Game._cache.__ragged;
+  delete Game._cache.__empty;
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows

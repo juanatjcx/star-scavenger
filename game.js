@@ -93,13 +93,26 @@ const Game = {
     },
   },
 
-  _cache: {},
+  _cache: Object.create(null),
 
   // Draw a sprite once into its own little canvas, then reuse it every frame.
   _spriteCanvas: function (name) {
     if (Game._cache[name]) return Game._cache[name];
     const rows = SPRITES[name];
-    if (!rows) throw new Error('There is no sprite called "' + name + '" in sprites.js');
+    if (!rows || !rows.length) {
+      throw new Error('The sprite "' + name + '" is missing or empty in sprites.js');
+    }
+    // Every row must be the same number of characters. If one row is longer, the
+    // extra pixels fall outside the sprite and vanish without any warning — the
+    // edit just looks like it did nothing, which is the worst thing that can
+    // happen while you are demonstrating in front of a class.
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].length !== rows[0].length) {
+        throw new Error('Sprite "' + name + '" has rows of different lengths: row ' + i +
+          ' is ' + rows[i].length + ' characters but row 0 is ' + rows[0].length +
+          '. Every row must be the same length.');
+      }
+    }
     const art = Game.pure.parseSprite(rows, PALETTE);
     const c = document.createElement('canvas');
     c.width = art.w;
@@ -117,6 +130,8 @@ const Game = {
 
   _drawSprite: function (ctx, name, cx, cy, angle) {
     const c = Game._spriteCanvas(name);
+    // An angle of 0 is falsy, so this also catches "not rotated" — take the
+    // fast path that keeps the art lined up on whole pixels.
     if (!angle) {
       // Whole pixels only, or the art blurs.
       ctx.drawImage(c, Math.round(cx - c.width / 2), Math.round(cy - c.height / 2));
