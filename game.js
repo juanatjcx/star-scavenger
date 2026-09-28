@@ -149,6 +149,39 @@ const Game = {
       return -1;
     },
 
+    // Age every diamond and drop the ones whose life has run out. Same shape
+    // as stepParticles: count `life` down by dt, keep whatever is still positive.
+    stepGems: function (gems, dt) {
+      const out = [];
+      for (let i = 0; i < gems.length; i++) {
+        const g = gems[i];
+        g.life -= dt;
+        if (g.life > 0) out.push(g);
+      }
+      return out;
+    },
+
+    findCollectedGem: function (ship, gems, cfg) {
+      for (let i = 0; i < gems.length; i++) {
+        if (Game.pure.circlesOverlap(ship.x, ship.y, cfg.SHIP_RADIUS,
+                                     gems[i].x, gems[i].y, cfg.GEM_RADIUS)) return i;
+      }
+      return -1;
+    },
+
+    // Is this diamond inside its last GEM_BLINK_LAST seconds, and should it
+    // be hidden on THIS frame? Reuses the ship's own invincibility formula —
+    // same BLINK_HZ, same floor/mod toggle — just gated by remaining gem
+    // life instead of invincibleFor. `now` (the same timestamp draw() gets
+    // from requestAnimationFrame) drives the toggle rather than a clock read
+    // in here, so the same inputs always give the same answer and this is
+    // testable — exactly the split clockStyle makes between an urgency
+    // window and the oscillation itself.
+    gemIsFlashing: function (gem, now, cfg) {
+      if (gem.life > cfg.GEM_BLINK_LAST) return false;
+      return Math.floor((now / 1000) * cfg.BLINK_HZ * 2) % 2 === 1;
+    },
+
     // Put a new rock just off one edge, pointed roughly across the arena.
     // "Roughly" is the jitter: without it every rock flies in a straight line
     // and the game is boring.
@@ -355,6 +388,8 @@ const Game = {
         'CRYSTALS_ON_SCREEN', 'CRYSTAL_POINTS', 'CRYSTAL_RADIUS',
         'CRYSTAL_WALL_MARGIN', 'CRYSTAL_MIN_FROM_SHIP', 'CRYSTAL_MIN_FROM_CRYSTAL',
         'SPAWN_TRIES',
+        'GEM_POINTS', 'GEM_EVERY', 'GEM_LIFETIME', 'GEM_RADIUS', 'GEM_BLINK_LAST',
+        'GEM_HZ', 'GEM_MS',
         'ASTEROID_RADIUS_FACTOR', 'ASTEROID_JITTER_DEG', 'ASTEROID_SPIN_DEG',
         'ASTEROID_MAX_ALIVE', 'ASTEROID_MAX_LIFETIME', 'ASTEROID_DESPAWN_MARGIN',
         'SHIP_LIVES', 'INVINCIBLE_SECONDS', 'BLINK_HZ',
@@ -511,6 +546,8 @@ const Game = {
       scale: 1,
       ship: { x: CONFIG.ARENA / 2, y: CONFIG.ARENA / 2 },
       crystals: [],
+      gems: [],
+      gemTimer: CONFIG.GEM_EVERY,
       score: 0,
       asteroids: [],
       elapsed: 0,
@@ -534,6 +571,8 @@ const Game = {
       state.ship.x = CONFIG.ARENA / 2;
       state.ship.y = CONFIG.ARENA / 2;
       state.crystals.length = 0;
+      state.gems.length = 0;
+      state.gemTimer = CONFIG.GEM_EVERY;
       state.asteroids = [];
       state.particles = [];
       state.score = 0;
@@ -672,6 +711,14 @@ const Game = {
       for (let i = 0; i < state.crystals.length; i++) {
         Game._drawSprite(ctx, 'crystal', state.crystals[i].x, state.crystals[i].y, 0);
       }
+      // A diamond blinks through its last GEM_BLINK_LAST seconds, exactly
+      // like the ship blinks while invincible — skipping the draw on
+      // alternate toggles is what makes it visibly flash instead of just
+      // popping out of existence.
+      for (let i = 0; i < state.gems.length; i++) {
+        const g = state.gems[i];
+        if (!P.gemIsFlashing(g, now, CONFIG)) Game._drawSprite(ctx, 'gem', g.x, g.y, 0);
+      }
       // While invincible the ship flashes, so a hit is unmistakable.
       const flashOff = state.invincibleFor > 0 &&
         Math.floor(state.invincibleFor * CONFIG.BLINK_HZ * 2) % 2 === 1;
@@ -755,6 +802,25 @@ const Game = {
               P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.Y, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
             Game._beep(CONFIG.COLLECT_HZ, CONFIG.COLLECT_MS);
           }
+
+          // Diamonds: rarer, worth more, and gone if you don't move.
+          state.gemTimer -= dt;
+          if (state.gemTimer <= 0) {
+            state.gemTimer = CONFIG.GEM_EVERY;
+            const spot = P.pickCrystalSpawn(
+              Math.random, state.ship, state.crystals.concat(state.gems), CONFIG);
+            state.gems.push({ x: spot.x, y: spot.y, life: CONFIG.GEM_LIFETIME });
+          }
+          state.gems = P.stepGems(state.gems, dt);
+          const gotGem = P.findCollectedGem(state.ship, state.gems, CONFIG);
+          if (gotGem >= 0) {
+            state.gems.splice(gotGem, 1);
+            state.score += CONFIG.GEM_POINTS;
+            state.particles = state.particles.concat(
+              P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.C, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
+            Game._beep(CONFIG.GEM_HZ, CONFIG.GEM_MS);
+          }
+
           state.elapsed += dt;
           state.spawnTimer -= dt;
           if (state.spawnTimer <= 0) {

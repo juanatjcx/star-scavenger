@@ -50,7 +50,7 @@ mistake that looks exactly like "I forgot to save."
 | `sprites.js` | The pixel art, drawn with letters. |
 | `game.js` | The game loop. You shouldn't need to touch it. |
 | `index.html` | The page and the error message panel. |
-| `tests.html` | Open it in a browser to check the maths still works (199 checks). |
+| `tests.html` | Open it in a browser to check the maths still works (227 checks). |
 | `serve.command` | Double-click to run the game locally. |
 | `serve.py` | The local server `serve.command` runs. Binds to `127.0.0.1` only. |
 | `ship` | Commits, pushes, and confirms the live site caught up. See "Shipping changes" above. |

@@ -135,7 +135,7 @@ function runTests() {
   eq(oops.pixels[0].color, '#ff00ff', 'an unknown letter turns magenta instead of crashing');
 
   // ── every real sprite is well formed ──
-  var names = ['ship', 'crystal', 'rock12', 'rock20', 'rock28', 'heart'];
+  var names = ['ship', 'crystal', 'gem', 'rock12', 'rock20', 'rock28', 'heart'];
   for (var n = 0; n < names.length; n++) {
     var sp = SPRITES[names[n]];
     eq(!!sp, true, names[n] + ' exists in SPRITES');
@@ -174,6 +174,13 @@ function runTests() {
   var realConfigThrew = false, realConfigMsg = '';
   try { P.validateConfig(CONFIG); } catch (e) { realConfigThrew = true; realConfigMsg = e.message; }
   eq(realConfigThrew, false, 'the real CONFIG passes validation: ' + realConfigMsg);
+
+  var missingGem = Object.assign({}, CONFIG);
+  delete missingGem.GEM_POINTS;
+  var missingGemThrew = false, missingGemMsg = '';
+  try { P.validateConfig(missingGem); } catch (e) { missingGemThrew = true; missingGemMsg = e.message; }
+  eq(missingGemThrew, true, 'a config missing GEM_POINTS throws instead of silently becoming NaN');
+  eq(missingGemMsg.indexOf('GEM_POINTS') >= 0, true, 'and the message names the missing key');
 
   var missingNumber = Object.assign({}, CONFIG);
   delete missingNumber.SHIP_SPEED;
@@ -546,6 +553,63 @@ function runTests() {
   // checked vx, so an axis swap confined to that branch was untested.
   var fromTop = P.pickAsteroidSpawn(fakeRng([0, 0.5, 0, 0.5, 0.5]), 0, CONFIG);
   near(fromTop.vx, 0, 'a rock from the top with no jitter flies straight down, not sideways');
+
+  // ── stepGems ──
+  var gemsIn = [{ x: 1, y: 1, life: 0.5 }, { x: 2, y: 2, life: 0.05 }];
+  var gemsOut = P.stepGems(gemsIn, 0.1);
+  eq(gemsOut.length, 1, 'a gem past its life is removed by stepGems');
+  near(gemsOut[0].life, 0.4, 'and a surviving gem loses life at the rate of dt');
+  eq(gemsOut[0].x, 1, 'stepGems leaves a surviving gem where it was — gems do not move');
+
+  // ── findCollectedGem ──
+  var shipG = { x: 50, y: 50 };
+  eq(P.findCollectedGem(shipG, [{ x: 300, y: 300, life: 1 }], CONFIG), -1,
+     'a distant gem is not collected');
+  eq(P.findCollectedGem(shipG, [{ x: 300, y: 300, life: 1 }, { x: 53, y: 50, life: 1 }], CONFIG), 1,
+     'a touching gem returns its index');
+  eq(P.findCollectedGem(shipG, [], CONFIG), -1, 'no gems on screen means nothing is collected');
+
+  // ── gemIsFlashing ──
+  // Mirrors the ship's own invincibility blink — same BLINK_HZ, same
+  // floor/mod formula — just gated by remaining gem life instead of
+  // invincibleFor. `now` drives the toggle so the flicker is a smooth
+  // function of wall time, exactly the split clockStyle makes between the
+  // urgency window and the oscillation itself.
+  eq(P.gemIsFlashing({ life: CONFIG.GEM_LIFETIME }, 0, CONFIG), false,
+     'a freshly spawned gem is not flashing');
+  eq(P.gemIsFlashing({ life: CONFIG.GEM_BLINK_LAST + 0.001 }, 0, CONFIG), false,
+     'a hair outside the blink window never flashes, regardless of toggle phase');
+  eq(P.gemIsFlashing({ life: CONFIG.GEM_BLINK_LAST - 0.1 }, 0, CONFIG), false,
+     'inside the blink window, the toggle starts visible at now=0');
+  eq(P.gemIsFlashing({ life: CONFIG.GEM_BLINK_LAST - 0.1 }, 1000 / (CONFIG.BLINK_HZ * 2), CONFIG), true,
+     'and hides at the same toggle rate as the ship — BLINK_HZ * 2 flips per second');
+  eq(P.gemIsFlashing({ life: CONFIG.GEM_BLINK_LAST - 0.1 }, 1000 / CONFIG.BLINK_HZ, CONFIG), false,
+     'and comes back a full cycle later');
+
+  // ── pickCrystalSpawn, reused for gems: a gem never lands on a crystal ──
+  // pickCrystalSpawn takes whatever "existing" list it is handed — passing
+  // crystals and gems together is what keeps a diamond off a crystal (and a
+  // crystal off a diamond) without a second placement system to maintain.
+  var existingPickup = [{ x: 200, y: 200 }];
+  var gemSpot = P.pickCrystalSpawn(fakeRng([0.5, 0.5, 0, 0]), { x: 20, y: 20 }, existingPickup, CONFIG);
+  var gemDist = Math.sqrt(Math.pow(gemSpot.x - 200, 2) + Math.pow(gemSpot.y - 200, 2));
+  eq(gemDist >= CONFIG.CRYSTAL_MIN_FROM_CRYSTAL, true,
+     'a gem placed via pickCrystalSpawn keeps its distance from an existing pickup, crystal or gem alike');
+
+  // ── GEM_* config knobs exist and are sane ──
+  eq(typeof CONFIG.GEM_POINTS, 'number', 'GEM_POINTS is a number');
+  eq(CONFIG.GEM_POINTS > CONFIG.CRYSTAL_POINTS, true,
+     'a diamond is worth more than a crystal — that is the entire point of chasing one');
+  eq(typeof CONFIG.GEM_EVERY, 'number', 'GEM_EVERY is a number');
+  eq(typeof CONFIG.GEM_LIFETIME, 'number', 'GEM_LIFETIME is a number');
+  eq(typeof CONFIG.GEM_RADIUS, 'number', 'GEM_RADIUS is a number');
+  eq(typeof CONFIG.GEM_BLINK_LAST, 'number', 'GEM_BLINK_LAST is a number');
+  eq(CONFIG.GEM_BLINK_LAST < CONFIG.GEM_LIFETIME, true,
+     'the blink window is shorter than the diamond\'s whole life, or it would flash the entire time');
+  eq(typeof CONFIG.GEM_HZ, 'number', 'GEM_HZ is a number');
+  eq(CONFIG.GEM_HZ > CONFIG.COLLECT_HZ, true,
+     'the diamond blip is pitched higher than the crystal blip, so the room hears the difference');
+  eq(typeof CONFIG.GEM_MS, 'number', 'GEM_MS is a number');
 
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.

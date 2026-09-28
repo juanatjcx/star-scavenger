@@ -29,7 +29,7 @@ const CONFIG = {
                              // ship pass straight through asteroids.
 
   // ── Your ship ────────────────────────────────────────────────
-  SHIP_SPEED: 500,         // Units per second. Try 500 for chaos.
+  SHIP_SPEED: 220,         // Units per second. Try 500 for chaos.
   SHIP_RADIUS: 6,          // How big the ship's "hit zone" is. Smaller = easier.
 
   // ── Crystals: the things you collect ─────────────────────────
@@ -40,6 +40,15 @@ const CONFIG = {
   CRYSTAL_MIN_FROM_SHIP: 40,    // So one never appears in your lap.
   CRYSTAL_MIN_FROM_CRYSTAL: 25, // So five never stack into one blob.
   SPAWN_TRIES: 30,         // How hard we try for a good spot before giving up.
+
+  // ── Diamonds: the rare ones worth chasing ────────────────────
+  GEM_POINTS: 50,       // What a diamond is worth. A crystal is 10. Try 500.
+  GEM_EVERY: 10,        // Seconds between diamonds appearing.
+  GEM_LIFETIME: 5,      // Seconds before it vanishes if nobody gets it.
+  GEM_RADIUS: 6,        // How close you must get. Bigger = easier.
+  GEM_BLINK_LAST: 1.5,  // It starts flashing this long before it goes.
+  GEM_HZ: 1320,         // Pitch of the diamond blip. Higher than a crystal's.
+  GEM_MS: 90,           // How long that blip lasts.
 
   // ── Asteroids: the things that hurt ──────────────────────────
   ASTEROID_SIZES: [12, 20, 28],    // Small, medium, big. Sprite names match.

@@ -59,6 +59,11 @@ Ordered roughly easiest-to-read first.
 | "More crystals!" | `CRYSTALS_ON_SCREEN` | 5 → 30 | The screen fills with treasure. Safe well past this — see the note below the table. |
 | "Crystals worth more" | `CRYSTAL_POINTS` | 10 → 500 | Score explodes. |
 | "Make crystals easier to grab" | `CRYSTAL_RADIUS` | 5 → 12 | You don't have to be exact anymore. |
+| "Make the diamond worth more" | `GEM_POINTS` | 50 → 500 | A cyan diamond now outscores a whole field of crystals. Watch the room stop collecting crystals and start waiting for the next diamond instead — a lesson in incentives on its own. |
+| "More diamonds!" | `GEM_EVERY` | 10 → 3 | A new one every few seconds instead of every ten. |
+| "Give me longer to reach it" | `GEM_LIFETIME` | 5 → 15 | Way more forgiving — the blink still starts 1.5 seconds before it goes. |
+| "Make the diamond easier to grab" | `GEM_RADIUS` | 6 → 14 | Same idea as `CRYSTAL_RADIUS`, for the rare one. |
+| "Warn me earlier that it's about to vanish" | `GEM_BLINK_LAST` | 1.5 → 4 | It starts flashing almost as soon as it appears. |
 | "Too many rocks" | `ASTEROID_SPAWN_INTERVAL_END` | 0.25 → 1.0 | The ending stops being frantic. |
 | "Make it impossible" | `ASTEROID_SPAWN_INTERVAL_START` | 1.2 → 0.15 | A wall of rocks from second one — see the note below the table on why the tab doesn't freeze. |
 | "Rocks too fast" | `ASTEROID_SPEED_END` | 140 → 80 | Dodgeable again. |
@@ -267,22 +272,25 @@ student to draw a proper 8×8 shield in `sprites.js` and change `'heart'` to
 <a id="smoke-checklist"></a>
 ## Smoke checklist
 
-Run this after any change you're unsure about. All ten should pass.
+Run this after any change you're unsure about. All eleven should pass.
 
 1. Title screen appears with the instructions.
 2. Any key or tap starts the game.
 3. Arrows and WASD both move the ship; it can't leave the square.
-4. Flying into a crystal adds points and a replacement appears elsewhere.
-5. Flying into a rock costs a heart, shakes the screen, and the ship blinks.
-6. While blinking, a second rock does not cost a second heart.
-7. Reaching 0:00 shows YOU SURVIVED with the +100 bonus included, and Enter
+4. Flying into a crystal adds 10 points and a replacement appears elsewhere.
+5. A cyan diamond appears roughly every `GEM_EVERY` seconds, flashes for its
+   last `GEM_BLINK_LAST` seconds, and adds `GEM_POINTS` (50) if you reach it
+   in time — or vanishes with nothing if you don't.
+6. Flying into a rock costs a heart, shakes the screen, and the ship blinks.
+7. While blinking, a second rock does not cost a second heart.
+8. Reaching 0:00 shows YOU SURVIVED with the +100 bonus included, and Enter
    (or a tap or click) restarts it — a stray key like an arrow does nothing.
-8. Losing all hearts shows GAME OVER before the clock runs out, and it takes
+9. Losing all hearts shows GAME OVER before the clock runs out, and it takes
    the same Enter, tap, or click to restart.
-9. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
-10. The BEST score survives a reload.
+10. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
+11. The BEST score survives a reload.
 
-Also: open `tests.html` and confirm `0 failed` (there are 199 checks total).
+Also: open `tests.html` and confirm `0 failed` (there are 227 checks total).
 
 <a id="troubleshooting"></a>
 ## When it breaks in front of everyone
