@@ -29,7 +29,7 @@ const CONFIG = {
                              // ship pass straight through asteroids.
 
   // ── Your ship ────────────────────────────────────────────────
-  SHIP_SPEED: 500,         // Units per second. Try 500 for chaos.
+  SHIP_SPEED: 220,         // Units per second. Try 500 for chaos.
   SHIP_RADIUS: 6,          // How big the ship's "hit zone" is. Smaller = easier.
 
   // ── Crystals: the things you collect ─────────────────────────
