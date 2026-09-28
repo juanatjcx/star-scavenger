@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Star Scavenger tests</title>
+<style>
+  body { font: 14px ui-monospace, Menlo, monospace; background: #0d1017; color: #cfd6e6; padding: 24px; }
+  .pass { color: #7ee787; } .fail { color: #ff7b72; font-weight: bold; }
+  h1 { font-size: 18px; }
+</style></head>
+<body>
+<h1>Star Scavenger tests</h1>
+<div id="out"></div>
+
+<script src="config.js"></script>
+<script src="sprites.js"></script>
+<script src="game.js"></script>
+<script>
+// ── A test harness in 20 lines, because we have no dependencies ──
+var results = { passed: 0, failed: 0, failures: [] };
+var lines = [];
+function eq(actual, expected, what) {
+  var a = JSON.stringify(actual), e = JSON.stringify(expected);
+  if (a === e) { results.passed++; lines.push('<div class="pass">PASS ' + what + '</div>'); }
+  else {
+    results.failed++;
+    var msg = what + ' — expected ' + e + ' but got ' + a;
+    results.failures.push(msg);
+    lines.push('<div class="fail">FAIL ' + msg + '</div>');
+  }
+}
+function near(actual, expected, what, tol) {
+  tol = tol === undefined ? 1e-9 : tol;
+  if (Math.abs(actual - expected) <= tol) { results.passed++; lines.push('<div class="pass">PASS ' + what + '</div>'); }
+  else {
+    results.failed++;
+    var msg2 = what + ' — expected ~' + expected + ' but got ' + actual;
+    results.failures.push(msg2);
+    lines.push('<div class="fail">FAIL ' + msg2 + '</div>');
+  }
+}
+// A deterministic stand-in for Math.random: returns the given numbers in order,
+// then repeats the last one forever.
+function fakeRng(values) {
+  var i = 0;
+  return function () { var v = values[Math.min(i, values.length - 1)]; i++; return v; };
+}
+
+var P = Game.pure;
+
+// ── clamp ──
+eq(P.clamp(5, 0, 10), 5, 'clamp leaves a value inside the range alone');
+eq(P.clamp(-3, 0, 10), 0, 'clamp raises a value below the range');
+eq(P.clamp(99, 0, 10), 10, 'clamp lowers a value above the range');
+
+// ── lerp ──
+eq(P.lerp(0, 100, 0), 0, 'lerp at 0 gives the start');
+eq(P.lerp(0, 100, 1), 100, 'lerp at 1 gives the end');
+eq(P.lerp(0, 100, 0.25), 25, 'lerp interpolates');
+near(P.lerp(1.2, 0.4, 0.5), 0.8, 'lerp counts downwards too');
+
+// ── circlesOverlap ──
+eq(P.circlesOverlap(0, 0, 5, 0, 9, 5), true, 'circles overlap when closer than the sum of radii');
+eq(P.circlesOverlap(0, 0, 5, 0, 11, 5), false, 'circles miss when further than the sum of radii');
+eq(P.circlesOverlap(0, 0, 5, 0, 10, 5), false, 'exactly touching does not count as a hit');
+eq(P.circlesOverlap(0, 0, 6, 3, 4, 4.8), true, 'a ship and the smallest asteroid collide at 5 units apart');
+
+// ── formatTime ──
+eq(P.formatTime(60), '1:00', 'formatTime shows a full minute');
+eq(P.formatTime(59.9), '0:59', 'formatTime floors partial seconds');
+eq(P.formatTime(9), '0:09', 'formatTime zero-pads seconds');
+eq(P.formatTime(0), '0:00', 'formatTime handles zero');
+eq(P.formatTime(-2), '0:00', 'formatTime never shows a negative clock');
+
+// ── difficultyAt ──
+var d0 = P.difficultyAt(0, CONFIG);
+near(d0.spawnInterval, 1.2, 'at 0s asteroids spawn every 1.2s');
+near(d0.speed, 60, 'at 0s asteroids move at 60 px/s');
+var d60 = P.difficultyAt(60, CONFIG);
+near(d60.spawnInterval, 0.4, 'at 60s asteroids spawn every 0.4s');
+near(d60.speed, 140, 'at 60s asteroids move at 140 px/s');
+var d30 = P.difficultyAt(30, CONFIG);
+near(d30.spawnInterval, 0.8, 'halfway through, the spawn interval is halfway');
+near(d30.speed, 100, 'halfway through, the speed is halfway');
+var dLate = P.difficultyAt(999, CONFIG);
+near(dLate.speed, 140, 'difficulty stops rising past the end of the run');
+
+document.getElementById('out').innerHTML =
+  '<p>' + results.passed + ' passed, ' + results.failed + ' failed</p>' + lines.join('');
+window.__testResults = results;
+console.log('TESTS ' + JSON.stringify({ passed: results.passed, failed: results.failed, failures: results.failures }));
+</script>
+</body></html>
