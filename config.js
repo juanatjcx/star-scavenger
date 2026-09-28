@@ -53,8 +53,10 @@ const CONFIG = {
   BLINK_HZ: 10,            // How fast you flash while invincible.
   SHAKE_PIXELS: 6,         // How hard the screen kicks on a hit. 0 = calm.
   SHAKE_DECAY: 0.15,       // Seconds for the kick to settle.
-  PARTICLES_PER_COLLECT: 8,
-  PARTICLES_PER_HIT: 14,
-  PARTICLE_SPEED: 70,
-  PARTICLE_LIFE: 0.45,
+  PARTICLES_PER_COLLECT: 8,  // Sparks thrown when you grab a crystal. More = showier.
+  PARTICLES_PER_HIT: 14,     // Sparks thrown when you take a hit. More = showier.
+  PARTICLE_SPEED: 70,        // How fast sparks fly outward. Higher = a bigger burst.
+  PARTICLE_SPEED_MIN: 0.4,  // Slowest piece, as a share of PARTICLE_SPEED.
+                            // The rest fly faster, up to full speed.
+  PARTICLE_LIFE: 0.45,       // Seconds a spark lives before fading out.
 };

@@ -264,7 +264,8 @@ function runTests() {
   eq(P.findHit(hs, [{ x: 300, y: 300, radius: 8 }], CONFIG), -1, 'a distant rock does not hit');
   eq(P.findHit(hs, [{ x: 300, y: 300, radius: 8 }, { x: 105, y: 100, radius: 8 }], CONFIG), 1,
      'a touching rock returns its index');
-  eq(P.findHit(hs, [{ x: 100 + CONFIG.SHIP_RADIUS + 4.8 + 1, y: 100, radius: 4.8 }], CONFIG), -1,
+  var smallestRadius = CONFIG.ASTEROID_SIZES[0] * CONFIG.ASTEROID_RADIUS_FACTOR;
+  eq(P.findHit(hs, [{ x: 100 + CONFIG.SHIP_RADIUS + smallestRadius + 1, y: 100, radius: smallestRadius }], CONFIG), -1,
      'the smallest rock just out of reach does not hit');
 
   // ── burst / stepParticles ──
@@ -279,6 +280,16 @@ function runTests() {
   eq(live[0].x, 2.5, 'and moves');
   near(live[0].life, 0.25, 'and loses life');
   eq(P.stepParticles(live, 1).length, 0, 'a piece out of life is removed');
+
+  // A fake rng that always returns the same number makes every piece identical,
+  // so the tests above cannot tell a real scatter from a burst that fires
+  // everything one way. Vary the rng and check the pieces actually differ.
+  var spread = P.burst(fakeRng([0.1, 0.5, 0.35, 0.5, 0.6, 0.5, 0.85, 0.5]), 0, 0, '#fff', 4, CONFIG);
+  var directions = {};
+  for (var bi = 0; bi < spread.length; bi++) {
+    directions[spread[bi].vx.toFixed(3) + ',' + spread[bi].vy.toFixed(3)] = true;
+  }
+  eq(Object.keys(directions).length, 4, 'burst sends its pieces in different directions');
 
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.

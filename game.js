@@ -204,7 +204,7 @@ const Game = {
       const out = [];
       for (let i = 0; i < count; i++) {
         const dir = rng() * Math.PI * 2;
-        const speed = cfg.PARTICLE_SPEED * (0.4 + rng() * 0.6);
+        const speed = cfg.PARTICLE_SPEED * (cfg.PARTICLE_SPEED_MIN + rng() * (1 - cfg.PARTICLE_SPEED_MIN));
         out.push({
           x: x, y: y,
           vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed,
