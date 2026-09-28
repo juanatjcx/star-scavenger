@@ -26,15 +26,15 @@ messages, so if you are changing the code, use `serve.command`.
 | `sprites.js` | The pixel art, drawn with letters. |
 | `game.js` | The game loop. You shouldn't need to touch it. |
 | `index.html` | The page and the error message panel. |
-| `tests.html` | Open it in a browser to check the maths still works (168 checks). |
+| `tests.html` | Open it in a browser to check the maths still works (179 checks). |
 | `serve.command` | Double-click to run the game locally. |
 
 ## Controls
 
 Arrow keys or WASD. On a phone, drag anywhere — the ship follows your thumb.
 The title screen starts on any key or tap. The win and lose screens restart
-on Enter or a tap — not just any key — so a key still held from playing
-doesn't skip past your score before you've read it.
+on Enter, a tap, or a click — not just any key — so a key still held from
+playing doesn't skip past your score before you've read it.
 
 ## Teaching with it
 

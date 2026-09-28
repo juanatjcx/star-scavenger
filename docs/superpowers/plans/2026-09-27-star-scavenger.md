@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Note, added after implementation:** some concrete values here were changed during
+> tuning. `config.js` is the source of truth for every number; this document records the
+> design as it stood before the game was measured. Notably `ASTEROID_SPAWN_INTERVAL_END`
+> shipped at 0.25 rather than 0.4, and the live asteroid count peaks near 13 rather than 8.
+
 **Goal:** Build a 60-second pixel-art dodge-and-collect survival game that a teacher can change live in front of absolute beginners, and that students can play on their phones from a public URL.
 
 **Architecture:** Four hand-written files loaded as classic `<script>` tags — `config.js` (every tunable number), `sprites.js` (ASCII pixel art), `game.js` (loop, state, entities), `index.html` (canvas, styles, error net). No engine, no build step, no dependencies. Gameplay logic that can silently be wrong lives in pure functions on `Game.pure`, asserted by `tests.html` in a browser.

@@ -4,6 +4,11 @@
 - **Repo:** https://github.com/juanatjcx/star-scavenger
 - **Status:** design approved in conversation; awaiting spec review, then implementation plan
 
+> **Note, added after implementation:** some concrete values here were changed during
+> tuning. `config.js` is the source of truth for every number; this document records the
+> design as it stood before the game was measured. Notably `ASTEROID_SPAWN_INTERVAL_END`
+> shipped at 0.25 rather than 0.4, and the live asteroid count peaks near 13 rather than 8.
+
 ## 1. Purpose
 
 A 2D pixel-art "dodge and collect" survival game that exists to be *taught with*. The

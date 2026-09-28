@@ -42,7 +42,7 @@ Ordered roughly easiest-to-read first.
 | "Make it slower" | `SHIP_SPEED` | 220 → 80 | Suddenly very hard. |
 | "Give me more lives" | `SHIP_LIVES` | 3 → 10 | Ten hearts along the bottom. |
 | "Make it shorter" | `SURVIVE_SECONDS` | 60 → 15 | A whole game in fifteen seconds. |
-| "Let me restart faster" | `RESTART_LOCKOUT_SECONDS` | 0.4 → 0 | Enter (or a tap) works the instant an ending appears, instead of after a short pause. |
+| "Let me restart faster" | `RESTART_LOCKOUT_SECONDS` | 0.4 → 0 | Enter (or a tap or click) works the instant an ending appears, instead of after a short pause. |
 | "More crystals!" | `CRYSTALS_ON_SCREEN` | 5 → 30 | The screen fills with treasure. Safe well past this — see the note below the table. |
 | "Crystals worth more" | `CRYSTAL_POINTS` | 10 → 500 | Score explodes. |
 | "Make crystals easier to grab" | `CRYSTAL_RADIUS` | 5 → 12 | You don't have to be exact anymore. |
@@ -111,7 +111,7 @@ before someone makes one live:
   `tests.html` and the game itself check this now — the game's own error
   panel names the exact sprite and row, e.g. *Sprite "gold" has rows of
   different lengths: row 3 is 9 characters but row 0 is 8 characters. Every
-  row must be the same length.* That matters more than it sounds: nobody
+  row must be the same length. Fix it in sprites.js.* That matters more than it sounds: nobody
   opens `tests.html` mid-lesson, but everybody sees the game's own error
   panel. Read the message aloud, count characters, fix the row, reload.
 
@@ -262,13 +262,13 @@ Run this after any change you're unsure about. All ten should pass.
 5. Flying into a rock costs a heart, shakes the screen, and the ship blinks.
 6. While blinking, a second rock does not cost a second heart.
 7. Reaching 0:00 shows YOU SURVIVED with the +100 bonus included, and Enter
-   (or a tap) restarts it — a stray key like an arrow does nothing.
+   (or a tap or click) restarts it — a stray key like an arrow does nothing.
 8. Losing all hearts shows GAME OVER before the clock runs out, and it takes
-   the same Enter-or-tap to restart.
+   the same Enter, tap, or click to restart.
 9. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
 10. The BEST score survives a reload.
 
-Also: open `tests.html` and confirm `0 failed` (there are 168 checks total).
+Also: open `tests.html` and confirm `0 failed` (there are 179 checks total).
 
 <a id="troubleshooting"></a>
 ## When it breaks in front of everyone
@@ -294,12 +294,13 @@ Add it or change it back.
 
 **A ragged-row error** (something like *Sprite "ship" has rows of different
 lengths: row 5 is 18 characters but row 0 is 17 characters. Every row must
-be the same length.*). Someone typed a character into a sprite row instead
+be the same length. Fix it in sprites.js.*). Someone typed a character into a sprite row instead
 of substituting one — count characters against row 0 and fix that one row.
 
-**Nothing at all happens when you reload.** Hard-reload (Cmd-Shift-R, or
-Ctrl-Shift-R on Windows) — the browser is caching the old `config.js` and
-serving you yesterday's numbers.
+**Nothing at all happens when you reload.** If an edit seems not to have taken
+effect, hard-reload (Cmd-Shift-R, or Ctrl-Shift-R on Windows) — though the
+local server now tells the browser never to cache these files, so this should
+be rare.
 
 **Port 8000 is already in use / `serve.command` says it couldn't start.**
 Either you already have it running in another Terminal window (close that
