@@ -117,6 +117,13 @@ function runTests() {
   var two = [{ x: 10, y: 100, bright: 1 }];
   P.scrollStars(two, 0.5, CONFIG);
   eq(two[0].y, 106, 'stars drift down at STAR_SCROLL_SPEED');
+  // JavaScript's % keeps the sign of the dividend, so a negative speed alone
+  // would leave y negative forever and the star would never draw again.
+  var negSpeedCfg = Object.assign({}, CONFIG, { STAR_SCROLL_SPEED: -12 });
+  var backward = [{ x: 10, y: 5, bright: 1 }];
+  P.scrollStars(backward, 1, negSpeedCfg);
+  eq(backward[0].y, CONFIG.ARENA - 7, 'a negative STAR_SCROLL_SPEED wraps a star back onto the far edge instead of leaving it negative');
+  eq(backward[0].y >= 0 && backward[0].y < CONFIG.ARENA, true, 'and the wrapped position is always inside the arena');
 
   // ── parseSprite ──
   var tiny = P.parseSprite(['.R.', 'RRR'], { R: '#ff0000' });
@@ -152,13 +159,58 @@ function runTests() {
   eq(raggedMsg.indexOf('__ragged') >= 0, true, 'and the error names the sprite');
   eq(raggedMsg.indexOf('row 1') >= 0, true, 'and says which row is the wrong length');
   SPRITES.__empty = [];
-  var emptyThrew = false;
-  try { Game._spriteCanvas('__empty'); } catch (e) { emptyThrew = true; }
+  var emptyThrew = false, emptyMsg = '';
+  try { Game._spriteCanvas('__empty'); } catch (e) { emptyThrew = true; emptyMsg = e.message; }
   eq(emptyThrew, true, 'an empty sprite gives a readable error, not a raw TypeError');
+  eq(emptyMsg.indexOf('__empty') >= 0, true, 'and the error names the sprite, not just "something threw"');
   delete SPRITES.__ragged;
   delete SPRITES.__empty;
   delete Game._cache.__ragged;
   delete Game._cache.__empty;
+
+  // ── validateConfig ──
+  // Built from Object.assign + delete so the real CONFIG is never mutated —
+  // other assertions in this file read it afterwards.
+  var realConfigThrew = false, realConfigMsg = '';
+  try { P.validateConfig(CONFIG); } catch (e) { realConfigThrew = true; realConfigMsg = e.message; }
+  eq(realConfigThrew, false, 'the real CONFIG passes validation: ' + realConfigMsg);
+
+  var missingNumber = Object.assign({}, CONFIG);
+  delete missingNumber.SHIP_SPEED;
+  var missingThrew = false, missingMsg = '';
+  try { P.validateConfig(missingNumber); } catch (e) { missingThrew = true; missingMsg = e.message; }
+  eq(missingThrew, true, 'a config missing a numeric key throws instead of silently becoming NaN');
+  eq(missingMsg.indexOf('SHIP_SPEED') >= 0, true, 'and the message names the missing key');
+
+  var deletedArena = Object.assign({}, CONFIG);
+  delete deletedArena.ARENA;
+  var arenaThrew = false, arenaMsg = '';
+  try { P.validateConfig(deletedArena); } catch (e) { arenaThrew = true; arenaMsg = e.message; }
+  eq(arenaThrew, true, 'a deleted ARENA throws instead of producing a black screen of NaN draw calls');
+  eq(arenaMsg.indexOf('ARENA') >= 0, true, 'and the message names ARENA');
+
+  var stringSpeed = Object.assign({}, CONFIG, { SHIP_SPEED: 'fast' });
+  var badTypeThrew = false, badTypeMsg = '';
+  try { P.validateConfig(stringSpeed); } catch (e) { badTypeThrew = true; badTypeMsg = e.message; }
+  eq(badTypeThrew, true, 'a non-numeric value for a numeric key throws');
+  eq(badTypeMsg.indexOf('SHIP_SPEED') >= 0, true, 'and names the offending key, not just "something is wrong"');
+
+  var infiniteFrame = Object.assign({}, CONFIG, { MAX_FRAME_SECONDS: Infinity });
+  var infThrew = false;
+  try { P.validateConfig(infiniteFrame); } catch (e) { infThrew = true; }
+  eq(infThrew, true, 'a non-finite numeric value (Infinity/NaN) throws, not just typeof !== "number"');
+
+  var emptySizes = Object.assign({}, CONFIG, { ASTEROID_SIZES: [] });
+  var emptySizesThrew = false, emptySizesMsg = '';
+  try { P.validateConfig(emptySizes); } catch (e) { emptySizesThrew = true; emptySizesMsg = e.message; }
+  eq(emptySizesThrew, true, 'an empty ASTEROID_SIZES throws');
+  eq(emptySizesMsg.indexOf('ASTEROID_SIZES') >= 0, true, 'and names it');
+
+  var numericColor = Object.assign({}, CONFIG, { CLOCK_CALM_COLOR: 0xe8e8ff });
+  var colorThrew = false, colorMsg = '';
+  try { P.validateConfig(numericColor); } catch (e) { colorThrew = true; colorMsg = e.message; }
+  eq(colorThrew, true, 'a non-string colour key throws');
+  eq(colorMsg.indexOf('CLOCK_CALM_COLOR') >= 0, true, 'and names it');
 
   // ── normalizeAim ──
   eq(P.normalizeAim(0, 0), { dx: 0, dy: 0 }, 'no keys held means no movement');
@@ -241,6 +293,19 @@ function runTests() {
   eq(aMax.radius, CONFIG.ASTEROID_SIZES[2] * CONFIG.ASTEROID_RADIUS_FACTOR, 'radius comes from size');
   eq(aMax.age, 0, 'a new rock has no age yet');
 
+  // Every case above feeds 0.5 for jitter and spin, and (0.5 * 2 - 1) === 0,
+  // so a degrees/radians mistake in either line would still pass. Use a
+  // non-0.5 value for both and check the heading and spin the maths actually
+  // predicts, from an edge where both vx and vy are meaningful.
+  var jitterFrac = 0.75, spinFrac = 0.25;
+  var aJitter = P.pickAsteroidSpawn(fakeRng([0, 0.5, 0, jitterFrac, spinFrac]), 0, CONFIG);
+  var expectedHeading = Math.PI / 2 + (jitterFrac * 2 - 1) * CONFIG.ASTEROID_JITTER_DEG * Math.PI / 180;
+  var expectedSpeed = CONFIG.ASTEROID_SPEED_START;
+  near(aJitter.vx, Math.cos(expectedHeading) * expectedSpeed, 'jitter bends the heading by the correct degrees-to-radians amount (vx)', 1e-6);
+  near(aJitter.vy, Math.sin(expectedHeading) * expectedSpeed, 'jitter bends the heading by the correct degrees-to-radians amount (vy)', 1e-6);
+  near(aJitter.spin, (spinFrac * 2 - 1) * CONFIG.ASTEROID_SPIN_DEG * Math.PI / 180,
+       'spin is derived from rng with the same degrees-to-radians maths as jitter', 1e-9);
+
   // ── stepAsteroids ──
   var rocks = [{ x: 10, y: 10, vx: 100, vy: -50, angle: 0, spin: 2, age: 0 }];
   P.stepAsteroids(rocks, 0.5);
@@ -269,6 +334,13 @@ function runTests() {
   var smallestRadius = CONFIG.ASTEROID_SIZES[0] * CONFIG.ASTEROID_RADIUS_FACTOR;
   eq(P.findHit(hs, [{ x: 100 + CONFIG.SHIP_RADIUS + smallestRadius + 1, y: 100, radius: smallestRadius }], CONFIG), -1,
      'the smallest rock just out of reach does not hit');
+  // A rock placed outside SHIP_RADIUS alone, but inside SHIP_RADIUS + its own
+  // radius, must still hit — otherwise the asteroid's radius could be dropped
+  // from the check entirely (collapsing every hitbox to a point) and nothing
+  // above would notice, since both cases above put the rock within
+  // SHIP_RADIUS by itself.
+  eq(P.findHit(hs, [{ x: 100 + CONFIG.SHIP_RADIUS + 8 - 1, y: 100, radius: 8 }], CONFIG), 0,
+     "a rock outside the ship's own radius but inside the combined radii still hits");
 
   // ── burst / stepParticles ──
   var bits = P.burst(fakeRng([0.5]), 50, 60, '#fff', 8, CONFIG);
@@ -373,7 +445,17 @@ function runTests() {
     try { Game._beep(440, 10); } catch (e) { noAudioThrew = true; }
     eq(noAudioThrew, false, 'a browser with no sound support does not crash the game');
 
-    // A context that refuses to resume must not throw either.
+    // A context that refuses to resume must not throw, synchronously OR via
+    // an unhandled promise rejection. The async path is the one commit
+    // 8c4ef22 actually fixed (a rejected resume() reaching
+    // `unhandledrejection` covers a working game with the red panel), and a
+    // synchronous try/catch here cannot see it — that rejection surfaces
+    // only after this function returns and the microtask queue drains. Set
+    // up detection now; the check itself runs after runTests() returns, see
+    // the bottom of this file.
+    var rejectionFired = false;
+    function onUnhandledRejection() { rejectionFired = true; }
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
     window.AudioContext = function () {
       return {
         state: 'suspended',
@@ -391,7 +473,15 @@ function runTests() {
     Game._audio = null;
     var refusedThrew = false;
     try { Game._beep(440, 10); } catch (e) { refusedThrew = true; }
-    eq(refusedThrew, false, 'a browser that refuses to start audio does not crash the game');
+    eq(refusedThrew, false, 'a browser that refuses to start audio does not throw synchronously');
+    // Give the rejected resume() promise a chance to surface as an
+    // unhandled rejection before the page renders its results.
+    window.__pendingRejectionCheck = new Promise(function (resolve) {
+      setTimeout(function () {
+        window.removeEventListener('unhandledrejection', onUnhandledRejection);
+        resolve(rejectionFired);
+      }, 50);
+    });
   } finally {
     window.AudioContext = realAudioCtor;
     window.webkitAudioContext = realWebkitAudioCtor;
@@ -476,9 +566,25 @@ try {
   lines.push('<div class="fail">' + crash + '</div>');
 }
 
-document.getElementById('out').innerHTML =
-  '<p>' + results.passed + ' passed, ' + results.failed + ' failed</p>' + lines.join('');
-window.__testResults = results;
-console.log('TESTS ' + JSON.stringify({ passed: results.passed, failed: results.failed, failures: results.failures }));
+function renderResults() {
+  document.getElementById('out').innerHTML =
+    '<p>' + results.passed + ' passed, ' + results.failed + ' failed</p>' + lines.join('');
+  window.__testResults = results;
+  console.log('TESTS ' + JSON.stringify({ passed: results.passed, failed: results.failed, failures: results.failures }));
+}
+
+// The audio test above cannot see an unhandledrejection from inside
+// runTests() — it only fires once this synchronous function has returned
+// and the microtask/task queue has drained. Wait for that one check, then
+// render, so it counts like every other assertion instead of being unable
+// to fail.
+if (window.__pendingRejectionCheck) {
+  window.__pendingRejectionCheck.then(function (fired) {
+    eq(!fired, true, "a rejected AudioContext.resume() promise from _beep never reaches an unhandledrejection — it's caught");
+    renderResults();
+  });
+} else {
+  renderResults();
+}
 </script>
 </body></html>
