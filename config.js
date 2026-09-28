@@ -9,6 +9,8 @@ const CONFIG = {
 
   // ── The clock ────────────────────────────────────────────────
   SURVIVE_SECONDS: 60,     // How long you have to stay alive.
+  RESTART_LOCKOUT_SECONDS: 0.4,  // How long an end screen ignores you, so the
+                                 // score is still there when you look up. 0 = instant.
 
   // ── Asteroids: how the game gets harder ──────────────────────
   ASTEROID_SPAWN_INTERVAL_START: 1.2,  // Seconds between rocks at the start.

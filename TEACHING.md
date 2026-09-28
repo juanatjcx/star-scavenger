@@ -34,6 +34,7 @@ Ordered roughly easiest-to-read first.
 | "Make it slower" | `SHIP_SPEED` | 220 → 80 | Suddenly very hard. |
 | "Give me more lives" | `SHIP_LIVES` | 3 → 10 | Ten hearts along the bottom. |
 | "Make it shorter" | `SURVIVE_SECONDS` | 60 → 15 | A whole game in fifteen seconds. |
+| "Let me restart faster" | `RESTART_LOCKOUT_SECONDS` | 0.4 → 0 | Enter (or a tap) works the instant an ending appears, instead of after a short pause. |
 | "More crystals!" | `CRYSTALS_ON_SCREEN` | 5 → 30 | The screen fills with treasure. Safe well past this — 60 never fails to place a crystal, 80 fails about 4% of the time, 100 about a third of the time, and it never hangs at any value; past ~80 they just start overlapping into blobs. |
 | "Crystals worth more" | `CRYSTAL_POINTS` | 10 → 500 | Score explodes. |
 | "Make crystals easier to grab" | `CRYSTAL_RADIUS` | 5 → 12 | You don't have to be exact anymore. |
@@ -211,12 +212,14 @@ Run this after any change you're unsure about. All ten should pass.
 4. Flying into a crystal adds points and a replacement appears elsewhere.
 5. Flying into a rock costs a heart, shakes the screen, and the ship blinks.
 6. While blinking, a second rock does not cost a second heart.
-7. Reaching 0:00 shows YOU SURVIVED with the +100 bonus included.
-8. Losing all hearts shows GAME OVER before the clock runs out.
+7. Reaching 0:00 shows YOU SURVIVED with the +100 bonus included, and Enter
+   (or a tap) restarts it — a stray key like an arrow does nothing.
+8. Losing all hearts shows GAME OVER before the clock runs out, and it takes
+   the same Enter-or-tap to restart.
 9. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
 10. The BEST score survives a reload.
 
-Also: open `tests.html` and confirm `0 failed` (there are 156 checks total).
+Also: open `tests.html` and confirm `0 failed` (there are 168 checks total).
 
 ## When it breaks in front of everyone
 

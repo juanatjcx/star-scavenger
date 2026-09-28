@@ -299,6 +299,20 @@ const Game = {
 
       return { color: color, dx: dx, dy: dy + kick, scale: scale };
     },
+
+    // Should this key press, tap or click start a new game?
+    //
+    // The title screen takes anything — there is nothing to read and you just
+    // want to play. The end screens want Enter specifically, because when you
+    // die your thumb is usually still on an arrow key, and a key repeat would
+    // otherwise flick past your score before you have seen it. A tap or click
+    // always works, since a phone has no Enter key.
+    startsGame: function (phase, eventType, key, lockoutFor) {
+      if (phase === 'playing') return false;
+      if (lockoutFor > 0) return false;
+      if (eventType !== 'keydown') return true;
+      return phase === 'title' || key === 'Enter';
+    },
   },
 
   _cache: Object.create(null),
@@ -429,6 +443,7 @@ const Game = {
       phase: 'title',
       timeLeft: CONFIG.SURVIVE_SECONDS,
       highScore: Game._loadHighScore(),
+      lockoutFor: 0,
     };
     P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
 
@@ -449,6 +464,7 @@ const Game = {
       state.spawnTimer = 0;
       state.invincibleFor = 0;
       state.shake = 0;
+      state.lockoutFor = 0;
       P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
       state.phase = 'playing';
 
@@ -458,16 +474,17 @@ const Game = {
       input.touch = null;
     }
 
-    // Title, win and lose screens all restart on any key or tap — there is no
-    // menu to read first. This listener is registered BEFORE the touch
-    // steering listener below so that, when a tap both dismisses an end
-    // screen and starts touchstart's own handler, reset() has already moved
-    // the ship back to the centre before that handler records the finger's
-    // offset from it — otherwise the offset would be measured against wherever
-    // the ship happened to be when the previous run ended, and the new run
-    // would open with a phantom fling toward that stale spot.
-    function anyButton() {
-      if (state.phase === 'playing') return;
+    // The title screen restarts on any key or tap — there is no menu to read
+    // first. The win and lose screens restart on Enter, a tap, or a click:
+    // see Game.pure.startsGame for why. This listener is registered BEFORE
+    // the touch steering listener below so that, when a tap both dismisses an
+    // end screen and starts touchstart's own handler, reset() has already
+    // moved the ship back to the centre before that handler records the
+    // finger's offset from it — otherwise the offset would be measured
+    // against wherever the ship happened to be when the previous run ended,
+    // and the new run would open with a phantom fling toward that stale spot.
+    function anyButton(e) {
+      if (!Game.pure.startsGame(state.phase, e && e.type, e && e.key, state.lockoutFor)) return;
       reset();
     }
     window.addEventListener('keydown', anyButton);
@@ -630,7 +647,9 @@ const Game = {
         } else {
           ctx.fillText('SCORE ' + state.score, CONFIG.ARENA / 2, 196);
         }
-        ctx.fillText('Press any key or tap to play', CONFIG.ARENA / 2, 260);
+        ctx.fillText(
+          state.phase === 'title' ? 'Press any key or tap to play' : 'Press Enter — or tap — to play again',
+          CONFIG.ARENA / 2, 260);
       }
       ctx.textAlign = 'left';
     }
@@ -689,16 +708,22 @@ const Game = {
           state.timeLeft -= dt;
           if (state.lives <= 0) {
             state.phase = 'lost';
+            state.lockoutFor = CONFIG.RESTART_LOCKOUT_SECONDS;
           } else if (state.timeLeft <= 0) {
             state.timeLeft = 0;
             state.score = P.finalScore(state.score, CONFIG);
             state.phase = 'won';
+            state.lockoutFor = CONFIG.RESTART_LOCKOUT_SECONDS;
           }
           if (state.phase !== 'playing' && state.score > state.highScore) {
             state.highScore = state.score;
             Game._saveHighScore(state.score);
           }
         }
+        // Outside the `playing` guard: otherwise this would never tick down on
+        // the very screens it governs, and an ending's lockout would never
+        // expire — looking exactly like the game had hung.
+        state.lockoutFor = Math.max(0, state.lockoutFor - dt);
         draw(now);
       } catch (e) {
         window.__showError((e && e.stack) || String(e), 'game.js');

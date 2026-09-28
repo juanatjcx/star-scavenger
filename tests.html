@@ -389,6 +389,21 @@ function runTests() {
     Game._audio = savedAudio;
   }
 
+  // ── what starts a new game ──
+  eq(P.startsGame('playing', 'keydown', 'Enter', 0), false, 'nothing restarts while you are playing');
+  eq(P.startsGame('title', 'keydown', 'a', 0), true, 'any key starts from the title screen');
+  eq(P.startsGame('title', 'touchstart', undefined, 0), true, 'and so does a tap');
+  eq(P.startsGame('lost', 'keydown', 'a', 0), false, 'a stray letter does not restart from game over');
+  eq(P.startsGame('lost', 'keydown', 'ArrowLeft', 0), false,
+     'and neither does an arrow key still held down from playing');
+  eq(P.startsGame('lost', 'keydown', 'Enter', 0), true, 'Enter restarts from game over');
+  eq(P.startsGame('won', 'keydown', 'ArrowLeft', 0), false, 'the win screen ignores a held arrow key too');
+  eq(P.startsGame('won', 'keydown', 'Enter', 0), true, 'and Enter restarts from the win screen');
+  eq(P.startsGame('lost', 'touchstart', undefined, 0), true, 'a tap restarts on a phone, which has no Enter');
+  eq(P.startsGame('lost', 'mousedown', undefined, 0), true, 'and so does a click');
+  eq(P.startsGame('lost', 'keydown', 'Enter', 0.2), false, 'nothing restarts during the lockout');
+  eq(P.startsGame('lost', 'touchstart', undefined, 0.2), false, 'including a tap');
+
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.
   //  They must stay inside runTests() so that a crash still shows
