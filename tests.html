@@ -135,7 +135,7 @@ function runTests() {
   eq(oops.pixels[0].color, '#ff00ff', 'an unknown letter turns magenta instead of crashing');
 
   // ── every real sprite is well formed ──
-  var names = ['ship', 'crystal', 'gem', 'rock12', 'rock20', 'rock28', 'heart'];
+  var names = ['ship', 'crystal', 'gem', 'rock12', 'rock20', 'rock28', 'heart', 'bomb'];
   for (var n = 0; n < names.length; n++) {
     var sp = SPRITES[names[n]];
     eq(!!sp, true, names[n] + ' exists in SPRITES');
@@ -610,6 +610,93 @@ function runTests() {
   eq(CONFIG.GEM_HZ > CONFIG.COLLECT_HZ, true,
      'the diamond blip is pitched higher than the crystal blip, so the room hears the difference');
   eq(typeof CONFIG.GEM_MS, 'number', 'GEM_MS is a number');
+
+  // ── armPickup ──
+  // Documented rng order: one rng() call decides whether it's armed at all;
+  // only an armed roll spends a second rng() call on the delay. Same
+  // discipline as pickAsteroidSpawn's edge/along/size/jitter/spin order.
+  var notArmed = P.armPickup(fakeRng([0.5]), CONFIG);
+  eq(notArmed, { armsIn: null }, 'rng above BOMB_CHANCE leaves a crystal unarmed');
+  var armedLow = P.armPickup(fakeRng([0.05, 0]), CONFIG);
+  eq(armedLow.armsIn, CONFIG.BOMB_ARM_MIN, 'rng below BOMB_CHANCE arms it, and a second rng of 0 picks the earliest delay');
+  var armedHigh = P.armPickup(fakeRng([0.05, 1]), CONFIG);
+  eq(armedHigh.armsIn, CONFIG.BOMB_ARM_MAX, 'a second rng of 1 picks the latest delay');
+  var armedMid = P.armPickup(fakeRng([0.05, 0.5]), CONFIG);
+  near(armedMid.armsIn, (CONFIG.BOMB_ARM_MIN + CONFIG.BOMB_ARM_MAX) / 2, 'and 0.5 picks the middle of the range');
+  var unarmedCalls = 0;
+  P.armPickup(function () { unarmedCalls++; return 0.99; }, CONFIG);
+  eq(unarmedCalls, 1, 'an unarmed roll consumes exactly one rng() call, never a second for the delay');
+  var armedCalls = 0;
+  P.armPickup(function () { armedCalls++; return armedCalls === 1 ? 0 : 0.5; }, CONFIG);
+  eq(armedCalls, 2, 'an armed roll consumes exactly two rng() calls');
+
+  // ── stepFuses ──
+  // Modelled on stepParticles/pruneAsteroids: count a timer down by dt,
+  // return what survives. Here a survivor can also change state (arming ->
+  // armed-and-burning) along the way, and anything whose fuse hits zero is
+  // reported separately instead of surviving.
+  var ordinary = { x: 1, y: 1, armsIn: null };
+  var justTurns = { x: 2, y: 2, armsIn: 0.05 };
+  var justBlows = { x: 3, y: 3, fuse: 0.05 };
+  var stepped = P.stepFuses([ordinary, justTurns, justBlows], 0.1, CONFIG);
+  eq(stepped.remaining.length, 2, 'an ordinary crystal and a newly-turned bomb remain; the burning one explodes');
+  eq(stepped.exploded.length, 1, 'exactly the burning crystal explodes this frame');
+  eq(stepped.exploded[0].x, 3, 'and it is the right one');
+  var turned = stepped.remaining.filter(function (c) { return c.x === 2; })[0];
+  eq(turned.armsIn, null, 'a crystal whose arming countdown ran out this frame is cleared of armsIn');
+  eq(turned.fuse, CONFIG.BOMB_FUSE_SECONDS, 'and starts a fresh fuse at BOMB_FUSE_SECONDS');
+  var untouched = stepped.remaining.filter(function (c) { return c.x === 1; })[0];
+  eq(untouched.armsIn, null, 'an ordinary crystal is left alone');
+  var stillArming = { x: 4, y: 4, armsIn: 2 };
+  var stillBurning = { x: 5, y: 5, fuse: 2 };
+  var midStep = P.stepFuses([stillArming, stillBurning], 0.5, CONFIG);
+  eq(midStep.remaining.length, 2, 'nothing explodes or turns before its time');
+  eq(midStep.exploded.length, 0, 'nothing explodes early');
+  near(midStep.remaining[0].armsIn, 1.5, 'armsIn counts down by dt');
+  near(midStep.remaining[1].fuse, 1.5, 'fuse counts down by dt');
+
+  // ── blastHitsShip ──
+  var bomb = { x: 200, y: 200 };
+  eq(P.blastHitsShip({ x: 200, y: 200 + CONFIG.BOMB_BLAST_RADIUS + 1 }, bomb, CONFIG), false,
+     'just outside the blast radius is safe');
+  eq(P.blastHitsShip({ x: 200, y: 200 + CONFIG.BOMB_BLAST_RADIUS - 1 }, bomb, CONFIG), true,
+     'just inside the blast radius costs a heart');
+  eq(P.blastHitsShip({ x: 200, y: 200 + CONFIG.BOMB_BLAST_RADIUS }, bomb, CONFIG), false,
+     "exactly on the blast radius does not count as a hit, matching circlesOverlap's own strict less-than");
+
+  // ── bombFlashOn ──
+  // Mirrors gemIsFlashing/clockStyle: `now` drives the toggle so the same
+  // inputs always give the same answer. Unlike the ship's fixed BLINK_HZ,
+  // the rate itself rises as the fuse burns down.
+  var freshBomb = { fuse: CONFIG.BOMB_FUSE_SECONDS };
+  eq(P.bombFlashOn(freshBomb, 0, CONFIG), true, 'a bomb that just turned starts its flash visible at now=0');
+  eq(P.bombFlashOn(freshBomb, 1000 / (CONFIG.BOMB_FLASH_HZ_START * 2), CONFIG), false,
+     'and toggles off half a cycle later, at the starting flash rate');
+  var lateBomb = { fuse: 0 };
+  eq(P.bombFlashOn(lateBomb, 0, CONFIG), true, 'a bomb about to explode also starts visible at now=0');
+  eq(P.bombFlashOn(lateBomb, 1000 / (CONFIG.BOMB_FLASH_HZ_END * 2), CONFIG), false,
+     'but toggles off much sooner, at the much faster END rate');
+  eq(P.bombFlashOn(freshBomb, 1000 / (CONFIG.BOMB_FLASH_HZ_END * 2), CONFIG), true,
+     'that same short interval is not even a full half-cycle yet at the slower START rate, so a fresh bomb is still visible');
+
+  // ── BOMB_* config knobs exist and are sane ──
+  eq(typeof CONFIG.BOMB_CHANCE, 'number', 'BOMB_CHANCE is a number');
+  eq(CONFIG.BOMB_CHANCE >= 0 && CONFIG.BOMB_CHANCE <= 1, true, 'BOMB_CHANCE is a share between 0 and 1');
+  eq(typeof CONFIG.BOMB_ARM_MIN, 'number', 'BOMB_ARM_MIN is a number');
+  eq(typeof CONFIG.BOMB_ARM_MAX, 'number', 'BOMB_ARM_MAX is a number');
+  eq(CONFIG.BOMB_ARM_MAX >= CONFIG.BOMB_ARM_MIN, true,
+     'a bomb never arms sooner than BOMB_ARM_MIN nor later than BOMB_ARM_MAX');
+  eq(typeof CONFIG.BOMB_FUSE_SECONDS, 'number', 'BOMB_FUSE_SECONDS is a number');
+  eq(typeof CONFIG.BOMB_BLAST_RADIUS, 'number', 'BOMB_BLAST_RADIUS is a number');
+  eq(typeof CONFIG.BOMB_FLASH_HZ_START, 'number', 'BOMB_FLASH_HZ_START is a number');
+  eq(typeof CONFIG.BOMB_FLASH_HZ_END, 'number', 'BOMB_FLASH_HZ_END is a number');
+  eq(CONFIG.BOMB_FLASH_HZ_END >= CONFIG.BOMB_FLASH_HZ_START, true,
+     'the flash speeds up, not down, as the fuse burns');
+  eq(typeof CONFIG.BOMB_PARTICLES, 'number', 'BOMB_PARTICLES is a number');
+  eq(typeof CONFIG.BOMB_RING_SECONDS, 'number', 'BOMB_RING_SECONDS is a number');
+  eq(typeof CONFIG.BOMB_HZ, 'number', 'BOMB_HZ is a number');
+  eq(CONFIG.BOMB_HZ < CONFIG.HIT_HZ, true, 'the boom is pitched lower than the hit thud');
+  eq(typeof CONFIG.BOMB_MS, 'number', 'BOMB_MS is a number');
 
   // ─────────────────────────────────────────────────────────────
   //  ADD NEW TESTS AT THE END OF THIS FUNCTION, above this line.

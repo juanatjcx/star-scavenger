@@ -103,6 +103,19 @@ const CONFIG = {
   CLOCK_PULSE_HZ_START: 2,      // Beats per second when the heartbeat begins...
   CLOCK_PULSE_HZ_END: 5,        // ...and by the time it reaches zero.
 
+  // ── Bombs: the crystals that turn on you ─────────────────────
+  BOMB_CHANCE: 0.1,        // Share of crystals secretly armed. 0 = none, 1 = all.
+  BOMB_ARM_MIN: 2,         // Earliest it can turn, in seconds after appearing.
+  BOMB_ARM_MAX: 8,         // Latest it can turn.
+  BOMB_FUSE_SECONDS: 2,    // How long it flashes before going off.
+  BOMB_BLAST_RADIUS: 45,   // How close to the blast is too close.
+  BOMB_FLASH_HZ_START: 4,  // Flash rate when the fuse lights...
+  BOMB_FLASH_HZ_END: 14,   // ...and just before it blows.
+  BOMB_PARTICLES: 30,      // Sparks thrown by the explosion.
+  BOMB_RING_SECONDS: 0.3,  // How long the blast ring stays on screen.
+  BOMB_HZ: 70,             // Pitch of the boom. Lower than the hit thud.
+  BOMB_MS: 320,            // How long the boom lasts.
+
   // ── Sound (made by maths, there are no sound files) ──────────
   SOUND_ON: true,          // Set to false for a silent classroom.
   COLLECT_HZ: 880,         // Pitch of the collect blip. Higher = squeakier.

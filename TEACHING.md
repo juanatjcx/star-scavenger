@@ -64,6 +64,12 @@ Ordered roughly easiest-to-read first.
 | "Give me longer to reach it" | `GEM_LIFETIME` | 5 → 15 | Way more forgiving — the blink still starts 1.5 seconds before it goes. |
 | "Make the diamond easier to grab" | `GEM_RADIUS` | 6 → 14 | Same idea as `CRYSTAL_RADIUS`, for the rare one. |
 | "Warn me earlier that it's about to vanish" | `GEM_BLINK_LAST` | 1.5 → 4 | It starts flashing almost as soon as it appears. |
+| "Make crystals secretly dangerous" | `BOMB_CHANCE` | 0.1 → 1 | Every crystal turns eventually instead of one in ten — a good whole-mechanic demo. See the note below the table. |
+| "Make them turn sooner" | `BOMB_ARM_MIN` | 2 → 0.5 | Almost no warning before a crystal can flip into a bomb. |
+| "Let crystals stay safe longer" | `BOMB_ARM_MAX` | 8 → 20 | A crystal might sit there untouched far longer before it ever turns. |
+| "Give me more warning before it blows" | `BOMB_FUSE_SECONDS` | 2 → 5 | More time to get clear once the flashing starts. |
+| "Make the blast bigger" | `BOMB_BLAST_RADIUS` | 45 → 100 | Being nowhere near the bomb still costs a heart — the ring shows exactly how far is far enough. |
+| "Bigger bomb explosions" | `BOMB_PARTICLES` | 30 → 100 | A much bigger shower of sparks when one blows. |
 | "Too many rocks" | `ASTEROID_SPAWN_INTERVAL_END` | 0.25 → 1.0 | The ending stops being frantic. |
 | "Make it impossible" | `ASTEROID_SPAWN_INTERVAL_START` | 1.2 → 0.15 | A wall of rocks from second one — see the note below the table on why the tab doesn't freeze. |
 | "Rocks too fast" | `ASTEROID_SPEED_END` | 140 → 80 | Dodgeable again. |
@@ -84,11 +90,23 @@ Ordered roughly easiest-to-read first.
 | "Make the clock panic earlier" | `CLOCK_URGENT_SECONDS` | 15 → 40 | Under the shipped setting the clock is calm for three-quarters of the run and only gets nervous in the last 15 seconds. Raise this to 40 and most of the round feels tense. |
 | "Bigger reward for surviving" | `WIN_BONUS` | 100 → 1000 | Surviving becomes worth more than collecting — a good lead-in to a strategy discussion. |
 
-### Notes on three of the rows above
+### Notes on a few of the rows above
 
 The table above is meant to be read in three seconds while thirty people
 watch, so the longer reasoning behind a few rows lives here instead.
 
+- **How bombs work, and what they do to scoring.** A crystal is worth
+  `CRYSTAL_POINTS` right up until the instant it turns — an armed crystal
+  looks *exactly* like an ordinary one, so grabbing it early scores normally
+  and removes the threat before it ever bites. Once it turns it starts
+  flashing (faster as its fuse burns down) and is worth nothing: touching a
+  flashing one costs a heart outright, and so does standing inside
+  `BOMB_BLAST_RADIUS` when it goes off — the expanding ring drawn at that
+  same radius is what tells you how close was too close. Either way it's the
+  same one heart, protected by the same invincibility window a rock hit
+  uses, so a bomb (or two going off together) can never cost two hearts at
+  once. **`BOMB_CHANCE: 1`** is worth a live demo of the whole idea — every
+  crystal is secretly armed, and the room watches the first one turn.
 - **`CRYSTALS_ON_SCREEN`** is safe well past 30. Zero spawn-placement
   failures through 60, about 4% of placements fail at 80, about a third fail
   at 100 — and it never hangs at any value. Past roughly 80 the crystals
@@ -272,7 +290,7 @@ student to draw a proper 8×8 shield in `sprites.js` and change `'heart'` to
 <a id="smoke-checklist"></a>
 ## Smoke checklist
 
-Run this after any change you're unsure about. All eleven should pass.
+Run this after any change you're unsure about. All twelve should pass.
 
 1. Title screen appears with the instructions.
 2. Any key or tap starts the game.
@@ -289,8 +307,15 @@ Run this after any change you're unsure about. All eleven should pass.
    the same Enter, tap, or click to restart.
 10. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
 11. The BEST score survives a reload.
+12. With `BOMB_CHANCE` set to 1 (in `config.js`, then reload — never leave it
+    that high in the shipped file), every crystal looks ordinary at first,
+    then flashes, then explodes: sparks, a screen shake, and an expanding
+    ring drawn at exactly `BOMB_BLAST_RADIUS`. Standing outside that ring
+    when it goes off is safe; standing inside it costs a heart, same as
+    touching a flashing one directly — and the same invincibility window
+    from a rock hit applies, so two at once still costs only one heart.
 
-Also: open `tests.html` and confirm `0 failed` (there are 227 checks total).
+Also: open `tests.html` and confirm `0 failed` (there are 270 checks total).
 
 <a id="troubleshooting"></a>
 ## When it breaks in front of everyone

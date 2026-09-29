@@ -139,6 +139,21 @@ const SPRITES = {
     '....CC....',
   ],
 
+  // 10 x 10. A crystal that turned. Dark and heavy, with a lit fuse, so it
+  // reads as danger next to the bright crystals and diamonds.
+  bomb: [
+    '.....F....',
+    '....F.....',
+    '...HH.....',
+    '..HGGHH...',
+    '.HGGGGGHH.',
+    '.HGGGGGGH.',
+    '.HGGGGGGH.',
+    '.HHGGGGHH.',
+    '..HHGGHH..',
+    '....HH....',
+  ],
+
   // 7 x 7. One of your lives.
   heart: [
     '.RR.RR.',
