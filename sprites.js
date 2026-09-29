@@ -124,36 +124,6 @@ const SPRITES = {
     '.........GGGGG..............',
   ],
 
-  // 10 x 10. The rare diamond. Cyan so it cannot be mistaken for a crystal
-  // from the back of a classroom.
-  gem: [
-    '....CC....',
-    '...CWWC...',
-    '..CWWWWC..',
-    '.CWWWWWWC.',
-    'CWWWWWWWWC',
-    'CBWWWWWWBC',
-    '.CBWWWWBC.',
-    '..CBWWBC..',
-    '...CBBC...',
-    '....CC....',
-  ],
-
-  // 10 x 10. A crystal that turned. Dark and heavy, with a lit fuse, so it
-  // reads as danger next to the bright crystals and diamonds.
-  bomb: [
-    '.....F....',
-    '....F.....',
-    '...HH.....',
-    '..HGGHH...',
-    '.HGGGGGHH.',
-    '.HGGGGGGH.',
-    '.HGGGGGGH.',
-    '.HHGGGGHH.',
-    '..HHGGHH..',
-    '....HH....',
-  ],
-
   // 7 x 7. One of your lives.
   heart: [
     '.RR.RR.',

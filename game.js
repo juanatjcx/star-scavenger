@@ -149,99 +149,6 @@ const Game = {
       return -1;
     },
 
-    // Roll whether a freshly spawned crystal is secretly armed, and if so,
-    // how long it sits looking ordinary before it turns. Consumes rng() in
-    // a fixed, documented order — exactly one call to decide armed/not, and
-    // only an armed roll spends a second call on the delay — the same
-    // discipline pickAsteroidSpawn uses for edge/along/size/jitter/spin, so
-    // a deterministic fakeRng in the tests can depend on the order.
-    armPickup: function (rng, cfg) {
-      const armed = rng() < cfg.BOMB_CHANCE;
-      if (!armed) return { armsIn: null };
-      return { armsIn: Game.pure.lerp(cfg.BOMB_ARM_MIN, cfg.BOMB_ARM_MAX, rng()) };
-    },
-
-    // Age every crystal's bomb state by dt. An armed-but-not-yet-turned
-    // crystal counts armsIn down and, the instant it crosses zero, becomes a
-    // live bomb with a fresh BOMB_FUSE_SECONDS fuse. A live bomb counts fuse
-    // down and, the instant THAT crosses zero, detonates — it is reported in
-    // `exploded` instead of `remaining`, same shape as stepParticles/
-    // pruneAsteroids: count a timer down by dt, keep what survives.
-    stepFuses: function (crystals, dt, cfg) {
-      const remaining = [];
-      const exploded = [];
-      for (let i = 0; i < crystals.length; i++) {
-        const c = crystals[i];
-        if (c.fuse !== undefined) {
-          c.fuse -= dt;
-          if (c.fuse <= 0) { exploded.push(c); continue; }
-          remaining.push(c);
-          continue;
-        }
-        if (c.armsIn !== null && c.armsIn !== undefined) {
-          c.armsIn -= dt;
-          if (c.armsIn <= 0) {
-            c.armsIn = null;
-            c.fuse = cfg.BOMB_FUSE_SECONDS;
-          }
-        }
-        remaining.push(c);
-      }
-      return { remaining: remaining, exploded: exploded };
-    },
-
-    // Is the ship inside the blast? A distance check from the ship's own
-    // position to the bomb's centre against BOMB_BLAST_RADIUS alone — not
-    // padded by SHIP_RADIUS — so the danger zone is exactly the circle the
-    // blast ring draws. Anything else would make the ring a lie.
-    blastHitsShip: function (ship, bomb, cfg) {
-      return Game.pure.circlesOverlap(ship.x, ship.y, 0, bomb.x, bomb.y, cfg.BOMB_BLAST_RADIUS);
-    },
-
-    // Should a live bomb be drawn on THIS frame? The flash speeds up as the
-    // fuse burns down, sliding from BOMB_FLASH_HZ_START to BOMB_FLASH_HZ_END.
-    // `now` drives the toggle rather than a clock read in here, so the same
-    // inputs always give the same answer — the same split clockStyle and
-    // gemIsFlashing make between an urgency window and the oscillation itself.
-    bombFlashOn: function (bomb, now, cfg) {
-      const into = Game.pure.clamp(1 - bomb.fuse / cfg.BOMB_FUSE_SECONDS, 0, 1);
-      const hz = Game.pure.lerp(cfg.BOMB_FLASH_HZ_START, cfg.BOMB_FLASH_HZ_END, into);
-      return Math.floor((now / 1000) * hz * 2) % 2 === 0;
-    },
-
-    // Age every diamond and drop the ones whose life has run out. Same shape
-    // as stepParticles: count `life` down by dt, keep whatever is still positive.
-    stepGems: function (gems, dt) {
-      const out = [];
-      for (let i = 0; i < gems.length; i++) {
-        const g = gems[i];
-        g.life -= dt;
-        if (g.life > 0) out.push(g);
-      }
-      return out;
-    },
-
-    findCollectedGem: function (ship, gems, cfg) {
-      for (let i = 0; i < gems.length; i++) {
-        if (Game.pure.circlesOverlap(ship.x, ship.y, cfg.SHIP_RADIUS,
-                                     gems[i].x, gems[i].y, cfg.GEM_RADIUS)) return i;
-      }
-      return -1;
-    },
-
-    // Is this diamond inside its last GEM_BLINK_LAST seconds, and should it
-    // be hidden on THIS frame? Reuses the ship's own invincibility formula —
-    // same BLINK_HZ, same floor/mod toggle — just gated by remaining gem
-    // life instead of invincibleFor. `now` (the same timestamp draw() gets
-    // from requestAnimationFrame) drives the toggle rather than a clock read
-    // in here, so the same inputs always give the same answer and this is
-    // testable — exactly the split clockStyle makes between an urgency
-    // window and the oscillation itself.
-    gemIsFlashing: function (gem, now, cfg) {
-      if (gem.life > cfg.GEM_BLINK_LAST) return false;
-      return Math.floor((now / 1000) * cfg.BLINK_HZ * 2) % 2 === 1;
-    },
-
     // Put a new rock just off one edge, pointed roughly across the arena.
     // "Roughly" is the jitter: without it every rock flies in a straight line
     // and the game is boring.
@@ -448,8 +355,6 @@ const Game = {
         'CRYSTALS_ON_SCREEN', 'CRYSTAL_POINTS', 'CRYSTAL_RADIUS',
         'CRYSTAL_WALL_MARGIN', 'CRYSTAL_MIN_FROM_SHIP', 'CRYSTAL_MIN_FROM_CRYSTAL',
         'SPAWN_TRIES',
-        'GEM_POINTS', 'GEM_EVERY', 'GEM_LIFETIME', 'GEM_RADIUS', 'GEM_BLINK_LAST',
-        'GEM_HZ', 'GEM_MS',
         'ASTEROID_RADIUS_FACTOR', 'ASTEROID_JITTER_DEG', 'ASTEROID_SPIN_DEG',
         'ASTEROID_MAX_ALIVE', 'ASTEROID_MAX_LIFETIME', 'ASTEROID_DESPAWN_MARGIN',
         'SHIP_LIVES', 'INVINCIBLE_SECONDS', 'BLINK_HZ',
@@ -460,9 +365,6 @@ const Game = {
         'CLOCK_URGENT_SECONDS', 'CLOCK_TREMBLE_MAX', 'CLOCK_TREMBLE_HZ',
         'CLOCK_KICK_UNITS', 'CLOCK_PULSE_SECONDS', 'CLOCK_PULSE_MAX',
         'CLOCK_PULSE_HZ_START', 'CLOCK_PULSE_HZ_END',
-        'BOMB_CHANCE', 'BOMB_ARM_MIN', 'BOMB_ARM_MAX', 'BOMB_FUSE_SECONDS',
-        'BOMB_BLAST_RADIUS', 'BOMB_FLASH_HZ_START', 'BOMB_FLASH_HZ_END',
-        'BOMB_PARTICLES', 'BOMB_RING_SECONDS', 'BOMB_HZ', 'BOMB_MS',
         'COLLECT_HZ', 'COLLECT_MS', 'HIT_HZ', 'HIT_MS', 'SOUND_VOLUME',
       ];
       const colorKeys = ['CLOCK_CALM_COLOR', 'CLOCK_WARN_COLOR', 'CLOCK_PANIC_COLOR', 'ARENA_COLOR'];
@@ -609,8 +511,6 @@ const Game = {
       scale: 1,
       ship: { x: CONFIG.ARENA / 2, y: CONFIG.ARENA / 2 },
       crystals: [],
-      gems: [],
-      gemTimer: CONFIG.GEM_EVERY,
       score: 0,
       asteroids: [],
       elapsed: 0,
@@ -619,28 +519,12 @@ const Game = {
       invincibleFor: 0,
       shake: 0,
       particles: [],
-      bombRings: [],
       phase: 'title',
       timeLeft: CONFIG.SURVIVE_SECONDS,
       highScore: Game._loadHighScore(),
       lockoutFor: 0,
     };
-
-    // Every crystal `refillCrystals` creates arrives as a plain {x, y} — tag
-    // the ones that are new (armsIn not yet set) with whether they're secretly
-    // armed and, if so, when they'll turn. Call this right after every
-    // refillCrystals call, same pattern TEACHING.md's own gold-crystal recipe
-    // uses for a field bolted onto the same object.
-    function tagNewCrystals() {
-      for (let i = 0; i < state.crystals.length; i++) {
-        if (state.crystals[i].armsIn === undefined) {
-          state.crystals[i].armsIn = P.armPickup(Math.random, CONFIG).armsIn;
-        }
-      }
-    }
-
     P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
-    tagNewCrystals();
 
     // Bring every mutable key introduced since Task 3 back to its starting
     // value. `stars`, `scale` and `highScore` are deliberately left alone:
@@ -650,8 +534,6 @@ const Game = {
       state.ship.x = CONFIG.ARENA / 2;
       state.ship.y = CONFIG.ARENA / 2;
       state.crystals.length = 0;
-      state.gems.length = 0;
-      state.gemTimer = CONFIG.GEM_EVERY;
       state.asteroids = [];
       state.particles = [];
       state.score = 0;
@@ -661,10 +543,8 @@ const Game = {
       state.spawnTimer = 0;
       state.invincibleFor = 0;
       state.shake = 0;
-      state.bombRings.length = 0;
       state.lockoutFor = 0;
       P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
-      tagNewCrystals();
       state.phase = 'playing';
 
       // Forget any drag in progress. Without this, a tap that dismisses an end
@@ -789,26 +669,8 @@ const Game = {
       ctx.fillStyle = CONFIG.ARENA_COLOR;
       ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
       drawStars(ctx, state.stars);
-      // A crystal that has turned (has a fuse) draws as a bomb, flashing
-      // faster the closer it is to exploding — skipping the draw on alternate
-      // toggles, same idea as the diamond's blink below. Anything else —
-      // ordinary or still secretly counting down to arm — looks exactly like
-      // a normal crystal. That is the whole point: you cannot tell by looking.
       for (let i = 0; i < state.crystals.length; i++) {
-        const c = state.crystals[i];
-        if (c.fuse !== undefined) {
-          if (P.bombFlashOn(c, now, CONFIG)) Game._drawSprite(ctx, 'bomb', c.x, c.y, 0);
-        } else {
-          Game._drawSprite(ctx, 'crystal', c.x, c.y, 0);
-        }
-      }
-      // A diamond blinks through its last GEM_BLINK_LAST seconds, exactly
-      // like the ship blinks while invincible — skipping the draw on
-      // alternate toggles is what makes it visibly flash instead of just
-      // popping out of existence.
-      for (let i = 0; i < state.gems.length; i++) {
-        const g = state.gems[i];
-        if (!P.gemIsFlashing(g, now, CONFIG)) Game._drawSprite(ctx, 'gem', g.x, g.y, 0);
+        Game._drawSprite(ctx, 'crystal', state.crystals[i].x, state.crystals[i].y, 0);
       }
       // While invincible the ship flashes, so a hit is unmistakable.
       const flashOff = state.invincibleFor > 0 &&
@@ -822,19 +684,6 @@ const Game = {
         const p = state.particles[i];
         ctx.fillStyle = p.color;
         ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
-      }
-      // A blast ring grows from nothing out to exactly BOMB_BLAST_RADIUS over
-      // its brief life, so the danger boundary a moment ago is drawn where it
-      // actually was — without this a heart disappears with no visible cause,
-      // the same reasoning behind the diamond's blink.
-      for (let i = 0; i < state.bombRings.length; i++) {
-        const r = state.bombRings[i];
-        const t = 1 - Game.pure.clamp(r.life / CONFIG.BOMB_RING_SECONDS, 0, 1);
-        ctx.strokeStyle = PALETTE.F;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(r.x, r.y, CONFIG.BOMB_BLAST_RADIUS * t, 0, Math.PI * 2);
-        ctx.stroke();
       }
       // ── HUD ──
       ctx.fillStyle = CONFIG.CLOCK_CALM_COLOR;
@@ -899,85 +748,13 @@ const Game = {
           P.stepShip(state.ship, currentAim(dt), dt, CONFIG);
           const got = P.findCollected(state.ship, state.crystals, CONFIG);
           if (got >= 0) {
-            const touched = state.crystals[got];
-            // A crystal that has turned (has a fuse) is a live bomb — touching it
-            // is not a collect, it is a hit that also sets the bomb off. An
-            // armed-but-not-yet-turned crystal (armsIn still counting down) is
-            // still an ordinary crystal until the moment it turns, so grabbing it
-            // early scores normally and removes the threat before it ever bites.
-            if (touched.fuse !== undefined) {
-              state.crystals.splice(got, 1);
-              state.particles = state.particles.concat(
-                P.burst(Math.random, touched.x, touched.y, PALETTE.F, CONFIG.BOMB_PARTICLES, CONFIG));
-              state.shake = CONFIG.SHAKE_DECAY;
-              state.bombRings.push({ x: touched.x, y: touched.y, life: CONFIG.BOMB_RING_SECONDS });
-              Game._beep(CONFIG.BOMB_HZ, CONFIG.BOMB_MS);
-              if (state.invincibleFor === 0) {
-                state.lives -= 1;
-                state.invincibleFor = CONFIG.INVINCIBLE_SECONDS;
-              }
-              P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
-              tagNewCrystals();
-            } else {
-              state.crystals.splice(got, 1);
-              state.score += CONFIG.CRYSTAL_POINTS;
-              P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
-              tagNewCrystals();
-              state.particles = state.particles.concat(
-                P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.Y, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
-              Game._beep(CONFIG.COLLECT_HZ, CONFIG.COLLECT_MS);
-            }
-          }
-
-          // Bombs: crystals that turned. Age every arming/burning timer; a
-          // fuse that reaches zero explodes — sparks, a shake, a beep, an
-          // expanding ring at exactly BOMB_BLAST_RADIUS so the danger zone is
-          // taught rather than guessed, and a heart if the ship was caught
-          // inside it (never a second one alongside a hit already applied
-          // above or below in this same frame — invincibleFor gates all three).
-          const fuseResult = P.stepFuses(state.crystals, dt, CONFIG);
-          state.crystals = fuseResult.remaining;
-          if (fuseResult.exploded.length > 0) {
-            for (let i = 0; i < fuseResult.exploded.length; i++) {
-              const bomb = fuseResult.exploded[i];
-              state.particles = state.particles.concat(
-                P.burst(Math.random, bomb.x, bomb.y, PALETTE.F, CONFIG.BOMB_PARTICLES, CONFIG));
-              state.shake = CONFIG.SHAKE_DECAY;
-              state.bombRings.push({ x: bomb.x, y: bomb.y, life: CONFIG.BOMB_RING_SECONDS });
-              Game._beep(CONFIG.BOMB_HZ, CONFIG.BOMB_MS);
-              if (state.invincibleFor === 0 && P.blastHitsShip(state.ship, bomb, CONFIG)) {
-                state.lives -= 1;
-                state.invincibleFor = CONFIG.INVINCIBLE_SECONDS;
-              }
-            }
+            state.crystals.splice(got, 1);
+            state.score += CONFIG.CRYSTAL_POINTS;
             P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
-            tagNewCrystals();
-          }
-          // The blast ring is a brief animation, not a game object with rules —
-          // age it here rather than adding a fifth pure function for one line.
-          for (let i = state.bombRings.length - 1; i >= 0; i--) {
-            state.bombRings[i].life -= dt;
-            if (state.bombRings[i].life <= 0) state.bombRings.splice(i, 1);
-          }
-
-          // Diamonds: rarer, worth more, and gone if you don't move.
-          state.gemTimer -= dt;
-          if (state.gemTimer <= 0) {
-            state.gemTimer = CONFIG.GEM_EVERY;
-            const spot = P.pickCrystalSpawn(
-              Math.random, state.ship, state.crystals.concat(state.gems), CONFIG);
-            state.gems.push({ x: spot.x, y: spot.y, life: CONFIG.GEM_LIFETIME });
-          }
-          state.gems = P.stepGems(state.gems, dt);
-          const gotGem = P.findCollectedGem(state.ship, state.gems, CONFIG);
-          if (gotGem >= 0) {
-            state.gems.splice(gotGem, 1);
-            state.score += CONFIG.GEM_POINTS;
             state.particles = state.particles.concat(
-              P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.C, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
-            Game._beep(CONFIG.GEM_HZ, CONFIG.GEM_MS);
+              P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.Y, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
+            Game._beep(CONFIG.COLLECT_HZ, CONFIG.COLLECT_MS);
           }
-
           state.elapsed += dt;
           state.spawnTimer -= dt;
           if (state.spawnTimer <= 0) {

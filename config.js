@@ -41,15 +41,6 @@ const CONFIG = {
   CRYSTAL_MIN_FROM_CRYSTAL: 25, // So five never stack into one blob.
   SPAWN_TRIES: 30,         // How hard we try for a good spot before giving up.
 
-  // ── Diamonds: the rare ones worth chasing ────────────────────
-  GEM_POINTS: 50,       // What a diamond is worth. A crystal is 10. Try 500.
-  GEM_EVERY: 10,        // Seconds between diamonds appearing.
-  GEM_LIFETIME: 5,      // Seconds before it vanishes if nobody gets it.
-  GEM_RADIUS: 6,        // How close you must get. Bigger = easier.
-  GEM_BLINK_LAST: 1.5,  // It starts flashing this long before it goes.
-  GEM_HZ: 1320,         // Pitch of the diamond blip. Higher than a crystal's.
-  GEM_MS: 90,           // How long that blip lasts.
-
   // ── Asteroids: the things that hurt ──────────────────────────
   ASTEROID_SIZES: [12, 20, 28],    // Small, medium, big. Sprite names match.
   ASTEROID_RADIUS_FACTOR: 0.4,     // Hit zone as a share of size. Smaller = kinder.
@@ -102,19 +93,6 @@ const CONFIG = {
   CLOCK_PULSE_MAX: 1.25,        // How much it swells on each beat. 1 = no beat.
   CLOCK_PULSE_HZ_START: 2,      // Beats per second when the heartbeat begins...
   CLOCK_PULSE_HZ_END: 5,        // ...and by the time it reaches zero.
-
-  // ── Bombs: the crystals that turn on you ─────────────────────
-  BOMB_CHANCE: 0.1,        // Share of crystals secretly armed. 0 = none, 1 = all.
-  BOMB_ARM_MIN: 2,         // Earliest it can turn, in seconds after appearing.
-  BOMB_ARM_MAX: 8,         // Latest it can turn.
-  BOMB_FUSE_SECONDS: 2,    // How long it flashes before going off.
-  BOMB_BLAST_RADIUS: 45,   // How close to the blast is too close.
-  BOMB_FLASH_HZ_START: 4,  // Flash rate when the fuse lights...
-  BOMB_FLASH_HZ_END: 14,   // ...and just before it blows.
-  BOMB_PARTICLES: 30,      // Sparks thrown by the explosion.
-  BOMB_RING_SECONDS: 0.3,  // How long the blast ring stays on screen.
-  BOMB_HZ: 70,             // Pitch of the boom. Lower than the hit thud.
-  BOMB_MS: 320,            // How long the boom lasts.
 
   // ── Sound (made by maths, there are no sound files) ──────────
   SOUND_ON: true,          // Set to false for a silent classroom.

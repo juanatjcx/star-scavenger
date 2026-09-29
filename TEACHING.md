@@ -22,16 +22,18 @@ Jump to: [Before class](#before-class) · [Opening](#opening) ·
    design, not a bug. If it looks small, zoom the browser to 200% (Cmd/Ctrl
    and `+`): it roughly doubles the projected size for free. At 1920×1080 or
    larger this never comes up.
-6. Ship at the natural breaks in the lesson — end of a tier, end of class —
-   with `./ship "what changed"` from a Terminal in this folder. It commits,
-   pushes, and tells you when the new version is live for the phones in the
-   room (about a minute). If a change turns out to have made things worse,
-   `./ship --undo` puts the previous version back the same way.
+6. Publish at the natural breaks in the lesson — end of a tier, end of class —
+   by asking your assistant to publish it, or by hand with
+   `git commit -am "what changed"` and `git push`. GitHub Pages takes roughly
+   40 to 95 seconds and gives no signal when it's done, so check the live URL
+   yourself before telling the room to reload their phones. If a change turns
+   out to have made things worse, `git revert HEAD` and push (or ask your
+   assistant) puts the previous version back the same way.
 
 The loop for the whole lesson: **a student suggests something → you change one
 number → you save → the room reacts** — the browser on the projector reloads
 itself, no click required. Keep it to one change at a time. The reaction is
-the lesson. Shipping is a separate, occasional step: the room is watching
+the lesson. Publishing is a separate, occasional step: the room is watching
 `localhost`, so nothing needs to go live until you choose a moment for it to.
 
 <a id="opening"></a>
@@ -59,17 +61,6 @@ Ordered roughly easiest-to-read first.
 | "More crystals!" | `CRYSTALS_ON_SCREEN` | 5 → 30 | The screen fills with treasure. Safe well past this — see the note below the table. |
 | "Crystals worth more" | `CRYSTAL_POINTS` | 10 → 500 | Score explodes. |
 | "Make crystals easier to grab" | `CRYSTAL_RADIUS` | 5 → 12 | You don't have to be exact anymore. |
-| "Make the diamond worth more" | `GEM_POINTS` | 50 → 500 | A cyan diamond now outscores a whole field of crystals. Watch the room stop collecting crystals and start waiting for the next diamond instead — a lesson in incentives on its own. |
-| "More diamonds!" | `GEM_EVERY` | 10 → 3 | A new one every few seconds instead of every ten. |
-| "Give me longer to reach it" | `GEM_LIFETIME` | 5 → 15 | Way more forgiving — the blink still starts 1.5 seconds before it goes. |
-| "Make the diamond easier to grab" | `GEM_RADIUS` | 6 → 14 | Same idea as `CRYSTAL_RADIUS`, for the rare one. |
-| "Warn me earlier that it's about to vanish" | `GEM_BLINK_LAST` | 1.5 → 4 | It starts flashing almost as soon as it appears. |
-| "Make crystals secretly dangerous" | `BOMB_CHANCE` | 0.1 → 1 | Every crystal turns eventually instead of one in ten — a good whole-mechanic demo. See the note below the table. |
-| "Make them turn sooner" | `BOMB_ARM_MIN` | 2 → 0.5 | Almost no warning before a crystal can flip into a bomb. |
-| "Let crystals stay safe longer" | `BOMB_ARM_MAX` | 8 → 20 | A crystal might sit there untouched far longer before it ever turns. |
-| "Give me more warning before it blows" | `BOMB_FUSE_SECONDS` | 2 → 5 | More time to get clear once the flashing starts. |
-| "Make the blast bigger" | `BOMB_BLAST_RADIUS` | 45 → 100 | Being nowhere near the bomb still costs a heart — the ring shows exactly how far is far enough. |
-| "Bigger bomb explosions" | `BOMB_PARTICLES` | 30 → 100 | A much bigger shower of sparks when one blows. |
 | "Too many rocks" | `ASTEROID_SPAWN_INTERVAL_END` | 0.25 → 1.0 | The ending stops being frantic. |
 | "Make it impossible" | `ASTEROID_SPAWN_INTERVAL_START` | 1.2 → 0.15 | A wall of rocks from second one — see the note below the table on why the tab doesn't freeze. |
 | "Rocks too fast" | `ASTEROID_SPEED_END` | 140 → 80 | Dodgeable again. |
@@ -87,26 +78,14 @@ Ordered roughly easiest-to-read first.
 | "Make the stars race by" | `STAR_SCROLL_SPEED` | 12 → 80 | A sense of speed even though the ship isn't faster — good for separating "how it looks" from "how it plays." |
 | "Turn the sound off" | `SOUND_ON` | true → false | Silence. |
 | "Make the collect sound higher" | `COLLECT_HZ` | 880 → 1800 | A squeakier blip. |
-| "Make the clock panic earlier" | `CLOCK_URGENT_SECONDS` | 15 → 40 | Under the shipped setting the clock is calm for three-quarters of the run and only gets nervous in the last 15 seconds. Raise this to 40 and most of the round feels tense. |
+| "Make the clock panic earlier" | `CLOCK_URGENT_SECONDS` | 15 → 40 | Under the default setting the clock is calm for three-quarters of the run and only gets nervous in the last 15 seconds. Raise this to 40 and most of the round feels tense. |
 | "Bigger reward for surviving" | `WIN_BONUS` | 100 → 1000 | Surviving becomes worth more than collecting — a good lead-in to a strategy discussion. |
 
-### Notes on a few of the rows above
+### Notes on three of the rows above
 
 The table above is meant to be read in three seconds while thirty people
 watch, so the longer reasoning behind a few rows lives here instead.
 
-- **How bombs work, and what they do to scoring.** A crystal is worth
-  `CRYSTAL_POINTS` right up until the instant it turns — an armed crystal
-  looks *exactly* like an ordinary one, so grabbing it early scores normally
-  and removes the threat before it ever bites. Once it turns it starts
-  flashing (faster as its fuse burns down) and is worth nothing: touching a
-  flashing one costs a heart outright, and so does standing inside
-  `BOMB_BLAST_RADIUS` when it goes off — the expanding ring drawn at that
-  same radius is what tells you how close was too close. Either way it's the
-  same one heart, protected by the same invincibility window a rock hit
-  uses, so a bomb (or two going off together) can never cost two hearts at
-  once. **`BOMB_CHANCE: 1`** is worth a live demo of the whole idea — every
-  crystal is secretly armed, and the room watches the first one turn.
 - **`CRYSTALS_ON_SCREEN`** is safe well past 30. Zero spawn-placement
   failures through 60, about 4% of placements fail at 80, about a third fail
   at 100 — and it never hangs at any value. Past roughly 80 the crystals
@@ -122,7 +101,7 @@ watch, so the longer reasoning behind a few rows lives here instead.
   would take roughly 390 seconds to cross the screen, so
   `ASTEROID_MAX_LIFETIME: 20` — which times a rock out after 20 seconds —
   becomes the only thing that ever removes it. That key looks unused in
-  normal play (no rock survives past roughly 9 seconds under shipped
+  normal play (no rock survives past roughly 9 seconds under default
   settings) but it isn't.
 
 <a id="tier-1b"></a>
@@ -290,32 +269,22 @@ student to draw a proper 8×8 shield in `sprites.js` and change `'heart'` to
 <a id="smoke-checklist"></a>
 ## Smoke checklist
 
-Run this after any change you're unsure about. All twelve should pass.
+Run this after any change you're unsure about. All ten should pass.
 
 1. Title screen appears with the instructions.
 2. Any key or tap starts the game.
 3. Arrows and WASD both move the ship; it can't leave the square.
-4. Flying into a crystal adds 10 points and a replacement appears elsewhere.
-5. A cyan diamond appears roughly every `GEM_EVERY` seconds, flashes for its
-   last `GEM_BLINK_LAST` seconds, and adds `GEM_POINTS` (50) if you reach it
-   in time — or vanishes with nothing if you don't.
-6. Flying into a rock costs a heart, shakes the screen, and the ship blinks.
-7. While blinking, a second rock does not cost a second heart.
-8. Reaching 0:00 shows YOU SURVIVED with the +100 bonus included, and Enter
+4. Flying into a crystal adds points and a replacement appears elsewhere.
+5. Flying into a rock costs a heart, shakes the screen, and the ship blinks.
+6. While blinking, a second rock does not cost a second heart.
+7. Reaching 0:00 shows YOU SURVIVED with the +100 bonus included, and Enter
    (or a tap or click) restarts it — a stray key like an arrow does nothing.
-9. Losing all hearts shows GAME OVER before the clock runs out, and it takes
+8. Losing all hearts shows GAME OVER before the clock runs out, and it takes
    the same Enter, tap, or click to restart.
-10. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
-11. The BEST score survives a reload.
-12. With `BOMB_CHANCE` set to 1 (in `config.js`, then reload — never leave it
-    that high in the shipped file), every crystal looks ordinary at first,
-    then flashes, then explodes: sparks, a screen shake, and an expanding
-    ring drawn at exactly `BOMB_BLAST_RADIUS`. Standing outside that ring
-    when it goes off is safe; standing inside it costs a heart, same as
-    touching a flashing one directly — and the same invincibility window
-    from a rock hit applies, so two at once still costs only one heart.
+9. Dragging on a phone (or Chrome device emulation) steers without scrolling the page.
+10. The BEST score survives a reload.
 
-Also: open `tests.html` and confirm `0 failed` (there are 270 checks total).
+Also: open `tests.html` and confirm `0 failed` (there are 199 checks total).
 
 <a id="troubleshooting"></a>
 ## When it breaks in front of everyone

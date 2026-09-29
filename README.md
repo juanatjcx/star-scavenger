@@ -26,21 +26,18 @@ need to click back into the browser and reload by hand. This only happens on
 `localhost`; the published game makes no network requests of any kind, and a
 `location.hostname` check keeps it that way.
 
-## Shipping changes
+## Publishing changes
 
-`./ship "what changed"` commits everything, pushes to `main`, and waits until
-the new version is actually live (GitHub Pages takes about a minute) before
-printing a `LIVE:` line. Run it with no message for a default one.
+None of the local workflow above touches git. Run `serve.command` once, edit
+`config.js`, save, and the page reloads itself — that's the whole loop.
 
-- `./ship --dry-run "..."` shows exactly what it would do — the commit
-  message, the files, whether it would push — without touching anything.
-- `./ship --undo` reverts the last deploy with a new commit (never rewrites
-  history) and waits for the old version to come back. Use it the moment a
-  change turns out to have made things worse.
-
-`./ship` always runs a syntax check on `config.js`, `sprites.js`, and
-`game.js` first and refuses to commit anything that doesn't parse — the one
-mistake that looks exactly like "I forgot to save."
+- To throw a change away: `git checkout config.js`.
+- To publish: ask your assistant to publish it, or do it by hand with
+  `git commit -am "what changed"` and `git push`, then wait — GitHub Pages
+  takes roughly 40 to 95 seconds and gives no signal when it's done, so check
+  the live URL yourself before telling a class to refresh.
+- To take a published change back: `git revert HEAD` and push, or ask your
+  assistant.
 
 ## The files
 
@@ -50,10 +47,9 @@ mistake that looks exactly like "I forgot to save."
 | `sprites.js` | The pixel art, drawn with letters. |
 | `game.js` | The game loop. You shouldn't need to touch it. |
 | `index.html` | The page and the error message panel. |
-| `tests.html` | Open it in a browser to check the maths still works (270 checks). |
+| `tests.html` | Open it in a browser to check the maths still works (199 checks). |
 | `serve.command` | Double-click to run the game locally. |
 | `serve.py` | The local server `serve.command` runs. Binds to `127.0.0.1` only. |
-| `ship` | Commits, pushes, and confirms the live site caught up. See "Shipping changes" above. |
 
 ## Controls
 
