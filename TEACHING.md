@@ -8,8 +8,15 @@ Jump to: [Before class](#before-class) · [Opening](#opening) ·
 <a id="before-class"></a>
 ## Before class
 
-1. Double-click `serve.command`. Leave the Terminal window open — closing it
-   stops the server.
+1. Start the local server and leave its window open — closing it stops the
+   server.
+   - **macOS:** double-click `serve.command`.
+   - **Windows:** open Git Bash or PowerShell in this folder and run
+     `python serve.py`.
+   - **Linux:** run `python3 serve.py`.
+
+   Then open `http://localhost:8000`. See the README if the tools aren't
+   installed yet.
 2. Open `config.js` in your editor, projected, at a font size the back row can
    read.
 3. Have `https://juanatjcx.github.io/star-scavenger/` on the board for phones.
@@ -298,8 +305,8 @@ one to fix; the others are usually just fallout from it. Undo, reload, carry
 on.
 
 **The panel says `"Script error."` with no detail.** You are not on the
-server. You opened `index.html` directly. Double-click `serve.command` and
-use `http://localhost:8000/`.
+server. You opened `index.html` directly. Start the server as in "Before
+class" above and use `http://localhost:8000/`.
 
 **`Identifier 'CONFIG' has already been declared`.** A `config.js` line got
 pasted into `game.js` (or `config.js` is included twice). The three files
@@ -318,11 +325,12 @@ effect, hard-reload (Cmd-Shift-R, or Ctrl-Shift-R on Windows) — though the
 local server now tells the browser never to cache these files, so this should
 be rare.
 
-**Port 8000 is already in use / `serve.command` says it couldn't start.**
-Either you already have it running in another Terminal window (close that
-one first) or something else on the machine is using port 8000. The script
-gives up after six seconds rather than hanging silently, and it tells you
-which of the two happened.
+**Port 8000 is already in use, or the server says it couldn't start.**
+Either you already have it running in another window (close that one first)
+or something else on the machine is using port 8000. On macOS,
+`serve.command` gives up after a few seconds rather than hanging silently
+and tells you which of the two happened; running `serve.py` directly will
+print the error.
 
 **The game is in slow motion.** Something is very expensive — usually a huge
 `CRYSTALS_ON_SCREEN` or `STAR_COUNT`. The game deliberately slows down rather
