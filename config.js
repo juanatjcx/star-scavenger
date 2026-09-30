@@ -30,11 +30,16 @@ const CONFIG = {
 
   // ── Your ship ────────────────────────────────────────────────
   SHIP_SPEED: 220,         // Units per second. Try 500 for chaos.
+  SHIP_TRAIL_SECONDS: 0.45, // How long the ship's fading blue trail lasts.
   SHIP_RADIUS: 6,          // How big the ship's "hit zone" is. Smaller = easier.
 
   // ── Crystals: the things you collect ─────────────────────────
   CRYSTALS_ON_SCREEN: 5,   // How many are out there at once.
   CRYSTAL_POINTS: 10,      // Points each one is worth.
+  DIAMOND_CHANCE: 0.10,    // Each new gem has a 10% chance of being a cyan diamond.
+  DIAMOND_POINTS: 50,      // The rare diamond's reward.
+  DIAMOND_SECONDS: 5,      // Collect it before it disappears (game-time seconds).
+  DIAMOND_BLINK_SECONDS: 2, // Blink during the final two seconds, faster near expiry.
   CRYSTAL_RADIUS: 5,       // How close you must get. Bigger = easier.
   CRYSTAL_WALL_MARGIN: 30, // Keeps them away from the edges.
   CRYSTAL_MIN_FROM_SHIP: 40,    // So one never appears in your lap.
@@ -72,6 +77,19 @@ const CONFIG = {
 
   // ── Winning ──────────────────────────────────────────────────
   WIN_BONUS: 100,          // Extra points for lasting the whole run.
+  BLACK_HOLE_COUNT: 3,     // Three appearances over a full round.
+  BLACK_HOLE_SECONDS: 5,   // Each disappears after five seconds.
+  BLACK_HOLE_SIZE: 20,     // About the size of the medium asteroid.
+  BLACK_HOLE_PULL_RANGE: 80, // Gravity grows stronger inside this range.
+  BLACK_HOLE_PULL_SPEED: 180, // Gravity strength near the event horizon.
+  MARTIAN_SPEED: 65,       // Left-to-right flyby speed.
+  MARTIAN_FIRE_SECONDS: 0.8, // Seconds between aimed shots.
+  MARTIAN_SHOT_SPEED: 130,
+  MARTIAN_SHOT_RADIUS: 3,
+  STAR_POWER_SECONDS: 5,   // Full immortality after catching the roaming star.
+  POWER_STAR_SPEED: 260,   // Faster than the ship: intercept it!
+  POWER_STAR_RADIUS: 5,
+  POWER_STAR_TRAIL_SECONDS: 0.6,
 
   // ── The clock's nerves ───────────────────────────────────────
   //  As time runs out the clock changes colour, shivers, jumps on
@@ -96,6 +114,7 @@ const CONFIG = {
 
   // ── Sound (made by maths, there are no sound files) ──────────
   SOUND_ON: true,          // Set to false for a silent classroom.
+  MUSIC_VOLUME: 0.12,      // Quiet background song (0 = silent, 1 = full volume).
   COLLECT_HZ: 880,         // Pitch of the collect blip. Higher = squeakier.
   COLLECT_MS: 60,
   HIT_HZ: 140,             // Pitch of the hit thud.

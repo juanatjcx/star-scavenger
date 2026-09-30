@@ -14,6 +14,10 @@
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
   canvas { image-rendering: pixelated; display: block; }
+  #playfield { position: relative; }
+  #controls { position: absolute; bottom: 12px; right: 12px; display: flex; gap: 8px; z-index: 2; }
+  #controls button { font: inherit; color: #e8e8ff; background: #20263b; border: 1px solid #667299; border-radius: 6px; padding: 10px 14px; cursor: pointer; }
+  #controls button:disabled { opacity: 0.45; }
   #error {
     display: none; position: fixed; inset: 0; padding: 24px;
     background: #2a0b12; color: #ffb3c0; font-size: 14px;
@@ -67,7 +71,13 @@
 </script>
 
 <div id="error"></div>
+<div id="playfield">
 <canvas id="game"></canvas>
+<div id="controls">
+<button id="pause" type="button" disabled aria-pressed="false">Pause</button>
+<button id="mute" type="button" aria-pressed="false">Mute</button>
+</div>
+</div>
 
 <script src="config.js"></script>
 <script src="sprites.js"></script>

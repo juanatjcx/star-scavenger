@@ -137,7 +137,10 @@ const Game = {
 
     refillCrystals: function (crystals, rng, ship, cfg) {
       while (crystals.length < cfg.CRYSTALS_ON_SCREEN) {
-        crystals.push(Game.pure.pickCrystalSpawn(rng, ship, crystals, cfg));
+        const crystal = Game.pure.pickCrystalSpawn(rng, ship, crystals, cfg);
+        crystal.diamond = rng() < cfg.DIAMOND_CHANCE;
+        if (crystal.diamond) crystal.timeLeft = cfg.DIAMOND_SECONDS;
+        crystals.push(crystal);
       }
     },
 
@@ -147,6 +150,156 @@ const Game = {
                                      crystals[i].x, crystals[i].y, cfg.CRYSTAL_RADIUS)) return i;
       }
       return -1;
+    },
+
+    // Only diamonds expire. Refill empty spots through the usual spawn rules.
+    stepCrystals: function (crystals, dt, rng, ship, cfg) {
+      for (let i = crystals.length - 1; i >= 0; i--) {
+        if (!crystals[i].diamond) continue;
+        crystals[i].timeLeft -= dt;
+        if (crystals[i].timeLeft <= 0) crystals.splice(i, 1);
+      }
+      Game.pure.refillCrystals(crystals, rng, ship, cfg);
+    },
+
+    crystalVisible: function (crystal, cfg) {
+      if (!crystal.diamond || cfg.DIAMOND_BLINK_SECONDS <= 0 ||
+          crystal.timeLeft > cfg.DIAMOND_BLINK_SECONDS) return true;
+      const blinkingFor = cfg.DIAMOND_BLINK_SECONDS - crystal.timeLeft;
+      // An increasing phase makes the flashes accelerate smoothly.
+      const phase = blinkingFor * 3 + blinkingFor * blinkingFor * 2;
+      return phase % 1 < 0.5;
+    },
+
+    stepShipTrail: function (state, oldX, oldY, dt, cfg) {
+      state.shipTrail = state.shipTrail.filter(function (point) {
+        point.life -= dt;
+        return point.life > 0;
+      });
+      if (cfg.SHIP_TRAIL_SECONDS > 0 && Math.hypot(state.ship.x - oldX, state.ship.y - oldY) > 0.01) {
+        state.shipTrail.push({ x: oldX, y: oldY, life: cfg.SHIP_TRAIL_SECONDS });
+      }
+    },
+
+    stepPowerStar: function (state, dt, rng, cfg) {
+      state.immortalFor = Math.max(0, state.immortalFor - dt);
+      state.starTrail = state.starTrail.filter(function (point) {
+        point.life -= dt;
+        return point.life > 0;
+      });
+      if (!state.powerStarAppeared && state.elapsed >= state.powerStarAt) {
+        state.powerStarAppeared = true;
+        state.powerStar = { x: 30, y: 30 + rng() * (cfg.ARENA - 60),
+          heading: rng() * Math.PI * 2, turnIn: 0.8, trailIn: 0 };
+      }
+      const star = state.powerStar;
+      if (!star) return;
+      star.turnIn -= dt;
+      if (star.turnIn <= 0) {
+        star.heading += (rng() - 0.5) * Math.PI;
+        star.turnIn = 0.5 + rng();
+      }
+      star.x += Math.cos(star.heading) * cfg.POWER_STAR_SPEED * dt;
+      star.y += Math.sin(star.heading) * cfg.POWER_STAR_SPEED * dt;
+      const margin = 12;
+      if (star.x < margin || star.x > cfg.ARENA - margin) star.heading = Math.PI - star.heading;
+      if (star.y < margin || star.y > cfg.ARENA - margin) star.heading = -star.heading;
+      star.x = Game.pure.clamp(star.x, margin, cfg.ARENA - margin);
+      star.y = Game.pure.clamp(star.y, margin, cfg.ARENA - margin);
+      star.trailIn -= dt;
+      if (star.trailIn <= 0) {
+        star.trailIn = 0.03;
+        state.starTrail.push({ x: star.x, y: star.y, life: cfg.POWER_STAR_TRAIL_SECONDS });
+      }
+      if (Game.pure.circlesOverlap(state.ship.x, state.ship.y, cfg.SHIP_RADIUS,
+                                   star.x, star.y, cfg.POWER_STAR_RADIUS)) {
+        state.powerStar = null;
+        state.immortalFor = cfg.STAR_POWER_SECONDS;
+        state.suckedInto = null;
+      }
+    },
+
+    stepMartian: function (state, dt, rng, cfg) {
+      if (!state.martianAppeared && state.elapsed >= state.martianAt) {
+        state.martianAppeared = true;
+        state.martian = { x: -16, y: 40 + rng() * (cfg.ARENA - 80), fireIn: 0.5 };
+      }
+      const alien = state.martian;
+      if (alien) {
+        alien.x += cfg.MARTIAN_SPEED * dt;
+        alien.fireIn -= dt;
+        if (alien.x > cfg.ARENA + 16) state.martian = null;
+        else if (alien.x >= 0 && alien.x <= cfg.ARENA && alien.fireIn <= 0) {
+          alien.fireIn = cfg.MARTIAN_FIRE_SECONDS;
+          const dx = state.ship.x - alien.x, dy = state.ship.y - alien.y;
+          const distance = Math.hypot(dx, dy) || 1;
+          state.martianShots.push({ x: alien.x, y: alien.y,
+            vx: dx / distance * cfg.MARTIAN_SHOT_SPEED,
+            vy: dy / distance * cfg.MARTIAN_SHOT_SPEED,
+            radius: cfg.MARTIAN_SHOT_RADIUS, age: 0 });
+        }
+      }
+      for (const shot of state.martianShots) {
+        shot.x += shot.vx * dt;
+        shot.y += shot.vy * dt;
+        shot.age += dt;
+      }
+      state.martianShots = state.martianShots.filter(function (shot) {
+        return shot.age < 10 && shot.x >= -10 && shot.x <= cfg.ARENA + 10 &&
+          shot.y >= -10 && shot.y <= cfg.ARENA + 10;
+      });
+    },
+
+    stepBlackHoles: function (state, dt, rng, cfg) {
+      state.blackHoles = state.blackHoles.filter(function (hole) {
+        hole.timeLeft -= dt;
+        hole.angle += dt * 3;
+        return hole.timeLeft > 0;
+      });
+      // Spread appearances across the round, leaving time for the last to expire.
+      const span = Math.max(0, cfg.SURVIVE_SECONDS - cfg.BLACK_HOLE_SECONDS);
+      while (state.blackHolesSpawned < cfg.BLACK_HOLE_COUNT &&
+             state.elapsed >= span * (state.blackHolesSpawned + 1) / (cfg.BLACK_HOLE_COUNT + 1)) {
+        const hole = Game.pure.pickCrystalSpawn(rng, state.ship, state.blackHoles,
+          { ...cfg, CRYSTAL_MIN_FROM_SHIP: cfg.BLACK_HOLE_PULL_RANGE + cfg.BLACK_HOLE_SIZE,
+            CRYSTAL_MIN_FROM_CRYSTAL: cfg.BLACK_HOLE_PULL_RANGE * 2 });
+        hole.timeLeft = cfg.BLACK_HOLE_SECONDS;
+        hole.angle = 0;
+        state.blackHoles.push(hole);
+        state.blackHolesSpawned++;
+      }
+      state.suckedInto = null;
+      state.shipStretch = 0;
+      if (state.immortalFor > 0) return;
+      let strongest = 0;
+      for (const hole of state.blackHoles) {
+        const dx = hole.x - state.ship.x, dy = hole.y - state.ship.y;
+        const distance = Math.hypot(dx, dy);
+        const horizon = cfg.BLACK_HOLE_SIZE * 0.55 / 2;
+        if (distance > cfg.BLACK_HOLE_PULL_RANGE) continue;
+        // Inverse-square attraction, tapered to zero at the outer boundary.
+        const force = cfg.BLACK_HOLE_PULL_SPEED * (
+          Math.pow(20 / Math.max(distance, horizon), 2) -
+          Math.pow(20 / cfg.BLACK_HOLE_PULL_RANGE, 2));
+        const pull = Math.min(distance, Math.max(0, force) * dt);
+        if (distance > 0) {
+          state.ship.x += dx / distance * pull;
+          state.ship.y += dy / distance * pull;
+        }
+        const proximity = Game.pure.clamp(1 - (distance - horizon) /
+          (cfg.BLACK_HOLE_PULL_RANGE - horizon), 0, 1);
+        if (proximity >= strongest) {
+          strongest = proximity;
+          state.shipStretch = proximity * proximity;
+          state.shipStretchAngle = Math.atan2(dy, dx);
+        }
+        // The ship's center must cross the visible dark horizon to lose.
+        if (distance - pull <= horizon) {
+          state.lives = 0;
+          state.suckedInto = hole;
+          state.shipStretch = 1;
+        }
+      }
     },
 
     // Put a new rock just off one edge, pointed roughly across the arena.
@@ -351,8 +504,9 @@ const Game = {
         'ASTEROID_SPEED_START', 'ASTEROID_SPEED_END',
         'STAR_COUNT', 'STAR_SCROLL_SPEED',
         'MAX_FRAME_SECONDS',
-        'SHIP_SPEED', 'SHIP_RADIUS',
+        'SHIP_SPEED', 'SHIP_RADIUS', 'SHIP_TRAIL_SECONDS',
         'CRYSTALS_ON_SCREEN', 'CRYSTAL_POINTS', 'CRYSTAL_RADIUS',
+        'DIAMOND_CHANCE', 'DIAMOND_POINTS', 'DIAMOND_SECONDS', 'DIAMOND_BLINK_SECONDS',
         'CRYSTAL_WALL_MARGIN', 'CRYSTAL_MIN_FROM_SHIP', 'CRYSTAL_MIN_FROM_CRYSTAL',
         'SPAWN_TRIES',
         'ASTEROID_RADIUS_FACTOR', 'ASTEROID_JITTER_DEG', 'ASTEROID_SPIN_DEG',
@@ -362,10 +516,14 @@ const Game = {
         'PARTICLES_PER_COLLECT', 'PARTICLES_PER_HIT', 'PARTICLE_SPEED',
         'PARTICLE_SPEED_MIN', 'PARTICLE_LIFE',
         'WIN_BONUS',
+        'BLACK_HOLE_COUNT', 'BLACK_HOLE_SECONDS', 'BLACK_HOLE_SIZE',
+        'BLACK_HOLE_PULL_RANGE', 'BLACK_HOLE_PULL_SPEED',
+        'MARTIAN_SPEED', 'MARTIAN_FIRE_SECONDS', 'MARTIAN_SHOT_SPEED', 'MARTIAN_SHOT_RADIUS',
+        'STAR_POWER_SECONDS', 'POWER_STAR_SPEED', 'POWER_STAR_RADIUS', 'POWER_STAR_TRAIL_SECONDS',
         'CLOCK_URGENT_SECONDS', 'CLOCK_TREMBLE_MAX', 'CLOCK_TREMBLE_HZ',
         'CLOCK_KICK_UNITS', 'CLOCK_PULSE_SECONDS', 'CLOCK_PULSE_MAX',
         'CLOCK_PULSE_HZ_START', 'CLOCK_PULSE_HZ_END',
-        'COLLECT_HZ', 'COLLECT_MS', 'HIT_HZ', 'HIT_MS', 'SOUND_VOLUME',
+        'COLLECT_HZ', 'COLLECT_MS', 'HIT_HZ', 'HIT_MS', 'SOUND_VOLUME', 'MUSIC_VOLUME',
       ];
       const colorKeys = ['CLOCK_CALM_COLOR', 'CLOCK_WARN_COLOR', 'CLOCK_PANIC_COLOR', 'ARENA_COLOR'];
       const arrayKeys = ['ASTEROID_SIZES', 'STAR_SHADES'];
@@ -504,6 +662,15 @@ const Game = {
     // mistyped line here, loudly, instead of letting it become NaN.
     P.validateConfig(CONFIG);
 
+    // Start from a user gesture; failed audio playback must never stop the game.
+    const music = new Audio('audio/star-scavenger.mp3');
+    music.loop = true;
+    music.volume = P.clamp(CONFIG.MUSIC_VOLUME, 0, 1);
+    function stopMusic() {
+      music.pause();
+      music.currentTime = 0;
+    }
+
     const ctx = canvas.getContext('2d');
 
     const state = {
@@ -513,6 +680,21 @@ const Game = {
       crystals: [],
       score: 0,
       asteroids: [],
+      blackHoles: [],
+      blackHolesSpawned: 0,
+      suckedInto: null,
+      shipStretch: 0,
+      shipStretchAngle: 0,
+      martian: null,
+      martianShots: [],
+      martianAppeared: false,
+      martianAt: 0,
+      powerStar: null,
+      powerStarAppeared: false,
+      powerStarAt: 0,
+      starTrail: [],
+      shipTrail: [],
+      immortalFor: 0,
       elapsed: 0,
       spawnTimer: 0,
       lives: CONFIG.SHIP_LIVES,
@@ -520,6 +702,7 @@ const Game = {
       shake: 0,
       particles: [],
       phase: 'title',
+      paused: false,
       timeLeft: CONFIG.SURVIVE_SECONDS,
       highScore: Game._loadHighScore(),
       lockoutFor: 0,
@@ -535,6 +718,23 @@ const Game = {
       state.ship.y = CONFIG.ARENA / 2;
       state.crystals.length = 0;
       state.asteroids = [];
+      state.blackHoles = [];
+      state.blackHolesSpawned = 0;
+      state.suckedInto = null;
+      state.shipStretch = 0;
+      state.shipStretchAngle = 0;
+      state.martian = null;
+      state.martianShots = [];
+      state.martianAppeared = false;
+      // Choose once per round, leaving enough time to complete the flyby.
+      const flybySeconds = (CONFIG.ARENA + 32) / CONFIG.MARTIAN_SPEED;
+      state.martianAt = Math.random() * Math.max(0, CONFIG.SURVIVE_SECONDS - flybySeconds);
+      state.powerStar = null;
+      state.powerStarAppeared = false;
+      state.powerStarAt = CONFIG.SURVIVE_SECONDS * (0.1 + Math.random() * 0.4);
+      state.starTrail = [];
+      state.shipTrail = [];
+      state.immortalFor = 0;
       state.particles = [];
       state.score = 0;
       state.lives = CONFIG.SHIP_LIVES;
@@ -546,6 +746,15 @@ const Game = {
       state.lockoutFor = 0;
       P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
       state.phase = 'playing';
+      state.paused = false;
+      pauseButton.disabled = false;
+      pauseButton.textContent = 'Pause';
+      pauseButton.setAttribute('aria-pressed', 'false');
+      music.playbackRate = 1;
+      stopMusic();
+      if (CONFIG.SOUND_ON && CONFIG.MUSIC_VOLUME > 0) {
+        music.play().catch(function () { /* Play on even if audio is blocked. */ });
+      }
 
       // Forget any drag in progress. Without this, a tap that dismisses an end
       // screen could carry a finger-to-ship gap measured against the ship's old
@@ -563,6 +772,7 @@ const Game = {
     // against wherever the ship happened to be when the previous run ended,
     // and the new run would open with a phantom fling toward that stale spot.
     function anyButton(e) {
+      if (e && e.target && e.target.closest && e.target.closest('#controls')) return;
       if (!Game.pure.startsGame(state.phase, e && e.type, e && e.key, state.lockoutFor)) return;
       reset();
     }
@@ -573,6 +783,32 @@ const Game = {
     // ── Input. Keyboard and touch both end up in here, so there is exactly
     //    one place to look when the controls misbehave. ──
     const input = { keys: {}, touch: null };
+    const pauseButton = document.getElementById('pause');
+    const muteButton = document.getElementById('mute');
+    function playMusic() {
+      if (CONFIG.SOUND_ON && CONFIG.MUSIC_VOLUME > 0 && state.phase === 'playing' && !state.paused) {
+        music.play().catch(function () {});
+      }
+    }
+    muteButton.textContent = CONFIG.SOUND_ON ? 'Mute' : 'Unmute';
+    muteButton.setAttribute('aria-pressed', String(!CONFIG.SOUND_ON));
+    pauseButton.addEventListener('click', function () {
+      if (state.phase !== 'playing') return;
+      state.paused = !state.paused;
+      input.keys = {};
+      input.touch = null;
+      pauseButton.textContent = state.paused ? 'Resume' : 'Pause';
+      pauseButton.setAttribute('aria-pressed', String(state.paused));
+      if (state.paused) music.pause();
+      else playMusic();
+    });
+    muteButton.addEventListener('click', function () {
+      CONFIG.SOUND_ON = !CONFIG.SOUND_ON;
+      music.muted = !CONFIG.SOUND_ON;
+      muteButton.textContent = CONFIG.SOUND_ON ? 'Mute' : 'Unmute';
+      muteButton.setAttribute('aria-pressed', String(!CONFIG.SOUND_ON));
+      playMusic();
+    });
 
     window.addEventListener('keydown', function (e) {
       input.keys[e.key] = true;
@@ -669,13 +905,81 @@ const Game = {
       ctx.fillStyle = CONFIG.ARENA_COLOR;
       ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
       drawStars(ctx, state.stars);
+      for (const point of state.shipTrail) {
+        const fade = point.life / CONFIG.SHIP_TRAIL_SECONDS;
+        ctx.globalAlpha = fade * 0.5;
+        ctx.fillStyle = PALETTE.B;
+        const size = 2 + fade * 4;
+        ctx.fillRect(Math.round(point.x - size / 2), Math.round(point.y - size / 2), size, size);
+        ctx.fillStyle = PALETTE.C;
+        ctx.fillRect(Math.round(point.x) - 1, Math.round(point.y) - 1, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+      const holes = state.blackHoles.slice();
+      for (const hole of holes) {
+        ctx.save();
+        ctx.translate(hole.x, hole.y);
+        ctx.rotate(hole.angle);
+        const radius = CONFIG.BLACK_HOLE_SIZE / 2;
+        ctx.strokeStyle = '#8060e8';
+        ctx.lineWidth = 2;
+        // Three curved arms orbit a dark center, making rotation visible.
+        for (let arm = 0; arm < 3; arm++) {
+          ctx.rotate(Math.PI * 2 / 3);
+          ctx.beginPath();
+          ctx.moveTo(radius, 0);
+          ctx.bezierCurveTo(radius, radius, -radius, radius, -radius / 3, 0);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
       for (let i = 0; i < state.crystals.length; i++) {
-        Game._drawSprite(ctx, 'crystal', state.crystals[i].x, state.crystals[i].y, 0);
+        const c = state.crystals[i];
+        if (!P.crystalVisible(c, CONFIG)) continue;
+        Game._drawSprite(ctx, c.diamond ? 'diamond' : 'crystal', c.x, c.y, 0);
+      }
+      if (state.martian) Game._drawSprite(ctx, 'martian', state.martian.x, state.martian.y, 0);
+      ctx.fillStyle = PALETTE.M;
+      for (const shot of state.martianShots) {
+        ctx.beginPath();
+        ctx.arc(shot.x, shot.y, CONFIG.MARTIAN_SHOT_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
       }
       // While invincible the ship flashes, so a hit is unmistakable.
-      const flashOff = state.invincibleFor > 0 &&
+      for (const point of state.starTrail) {
+        ctx.globalAlpha = point.life / CONFIG.POWER_STAR_TRAIL_SECONDS * 0.7;
+        ctx.fillStyle = PALETTE.Y;
+        ctx.fillRect(Math.round(point.x) - 2, Math.round(point.y) - 2, 4, 4);
+      }
+      ctx.globalAlpha = 1;
+      if (state.powerStar) Game._drawSprite(ctx, 'powerStar', state.powerStar.x, state.powerStar.y, 0);
+      if (state.immortalFor > 0) {
+        ctx.save();
+        ctx.strokeStyle = PALETTE.Y;
+        ctx.shadowColor = PALETTE.Y;
+        ctx.shadowBlur = 14;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(state.ship.x, state.ship.y, 13 + Math.sin(now / 120) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        Game._drawSprite(ctx, 'ship', state.ship.x, state.ship.y, 0);
+        ctx.restore();
+      }
+      const flashOff = state.immortalFor <= 0 && state.invincibleFor > 0 &&
         Math.floor(state.invincibleFor * CONFIG.BLINK_HZ * 2) % 2 === 1;
-      if (!flashOff) Game._drawSprite(ctx, 'ship', state.ship.x, state.ship.y, 0);
+      if (!flashOff) {
+        ctx.save();
+        ctx.translate(state.ship.x, state.ship.y);
+        ctx.rotate(state.shipStretchAngle);
+        ctx.scale(1 + state.shipStretch * 3, 1 / (1 + state.shipStretch * 3));
+        ctx.rotate(-state.shipStretchAngle);
+        Game._drawSprite(ctx, 'ship', 0, 0, 0);
+        ctx.restore();
+      }
       for (let i = 0; i < state.asteroids.length; i++) {
         const a = state.asteroids[i];
         Game._drawSprite(ctx, 'rock' + a.size, a.x, a.y, a.angle);
@@ -732,6 +1036,14 @@ const Game = {
           state.phase === 'title' ? 'Press any key or tap to play' : 'Press Enter — or tap — to play again',
           CONFIG.ARENA / 2, 260);
       }
+      if (state.paused) {
+        ctx.fillStyle = 'rgba(5, 6, 10, 0.75)';
+        ctx.fillRect(0, 0, CONFIG.ARENA, CONFIG.ARENA);
+        ctx.fillStyle = CONFIG.CLOCK_CALM_COLOR;
+        ctx.textAlign = 'center';
+        ctx.font = '20px monospace';
+        ctx.fillText('PAUSED', CONFIG.ARENA / 2, CONFIG.ARENA / 2);
+      }
       ctx.textAlign = 'left';
     }
 
@@ -743,19 +1055,26 @@ const Game = {
       const dt = Math.min((now - last) / 1000, CONFIG.MAX_FRAME_SECONDS);
       last = now;
       try {
-        if (state.phase === 'playing') {
+        if (state.phase === 'playing' && !state.paused) {
           P.scrollStars(state.stars, dt, CONFIG);
+          const oldShipX = state.ship.x, oldShipY = state.ship.y;
           P.stepShip(state.ship, currentAim(dt), dt, CONFIG);
+          P.stepCrystals(state.crystals, dt, Math.random, state.ship, CONFIG);
           const got = P.findCollected(state.ship, state.crystals, CONFIG);
           if (got >= 0) {
+            const diamond = state.crystals[got].diamond;
             state.crystals.splice(got, 1);
-            state.score += CONFIG.CRYSTAL_POINTS;
+            state.score += diamond ? CONFIG.DIAMOND_POINTS : CONFIG.CRYSTAL_POINTS;
             P.refillCrystals(state.crystals, Math.random, state.ship, CONFIG);
             state.particles = state.particles.concat(
-              P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.Y, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
+              P.burst(Math.random, state.ship.x, state.ship.y, diamond ? PALETTE.C : PALETTE.Y, CONFIG.PARTICLES_PER_COLLECT, CONFIG));
             Game._beep(CONFIG.COLLECT_HZ, CONFIG.COLLECT_MS);
           }
           state.elapsed += dt;
+          P.stepPowerStar(state, dt, Math.random, CONFIG);
+          P.stepMartian(state, dt, Math.random, CONFIG);
+          P.stepBlackHoles(state, dt, Math.random, CONFIG);
+          P.stepShipTrail(state, oldShipX, oldShipY, dt, CONFIG);
           state.spawnTimer -= dt;
           if (state.spawnTimer <= 0) {
             state.spawnTimer = P.difficultyAt(state.elapsed, CONFIG).spawnInterval;
@@ -769,16 +1088,19 @@ const Game = {
           state.asteroids = P.pruneAsteroids(state.asteroids, CONFIG);
           state.invincibleFor = Math.max(0, state.invincibleFor - dt);
           state.shake = Math.max(0, state.shake - dt);
-          if (state.invincibleFor === 0) {
+          if (state.invincibleFor === 0 && state.immortalFor <= 0) {
+            const shotIndex = P.findHit(state.ship, state.martianShots, CONFIG);
             const hitIndex = P.findHit(state.ship, state.asteroids, CONFIG);
-            if (hitIndex >= 0) {
+            if (hitIndex >= 0 || shotIndex >= 0) {
               state.lives -= 1;
+              music.playbackRate = Math.min(1.6, 1 + (CONFIG.SHIP_LIVES - state.lives) * 0.15);
               state.invincibleFor = CONFIG.INVINCIBLE_SECONDS;
               state.shake = CONFIG.SHAKE_DECAY;
               state.particles = state.particles.concat(
                 P.burst(Math.random, state.ship.x, state.ship.y, PALETTE.R, CONFIG.PARTICLES_PER_HIT, CONFIG));
               Game._beep(CONFIG.HIT_HZ, CONFIG.HIT_MS);
-              state.asteroids.splice(hitIndex, 1);
+              if (hitIndex >= 0) state.asteroids.splice(hitIndex, 1);
+              if (shotIndex >= 0) state.martianShots.splice(shotIndex, 1);
             }
           }
           state.particles = P.stepParticles(state.particles, dt);
@@ -800,6 +1122,7 @@ const Game = {
             state.highScore = state.score;
             Game._saveHighScore(state.score);
           }
+          if (state.phase !== 'playing') { stopMusic(); pauseButton.disabled = true; }
         }
         // Outside the `playing` guard: otherwise this would never tick down on
         // the very screens it governs, and an ending's lockout would never
@@ -807,6 +1130,7 @@ const Game = {
         state.lockoutFor = Math.max(0, state.lockoutFor - dt);
         draw(now);
       } catch (e) {
+        stopMusic();
         // Same extraction index.html's own catch uses, so the two call sites
         // name a source the same way instead of one reading the stack and
         // the other guessing. A frame-body error always physically

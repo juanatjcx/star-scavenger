@@ -17,9 +17,46 @@ const PALETTE = {
   H: '#5b5d68',     // Heavy grey — rock shadow
   L: '#b9bcc9',     // Light grey — rock highlight
   R: '#ff4d6d',     // Red    — hearts
+  M: '#64ed85',     // Martian green
 };
 
 const SPRITES = {
+  powerStar: [
+    '.....W.....',
+    '....WYW....',
+    '....WYW....',
+    'WWWWYYYWWWW',
+    '.WYYYYYYYW.',
+    '..WYYYYYW..',
+    '..WYYYYYW..',
+    '..WYYWYYW..',
+    '.WYYW.WYYW.',
+    '.WYW...WYW.',
+    '.WW.....WW.',
+  ],
+  martian: [
+    '......MMMM......',
+    '.....MCCWWM.....',
+    '....MMCCCCMM....',
+    '..MMMMMMMMMMMM..',
+    '.WMMMMMMMMMMMMW.',
+    'WWWWWWWWWWWWWWWW',
+    '..HHHHHHHHHHHH..',
+    '...R..R..R..R...',
+  ],
+  // A cyan diamond with white facets, distinct from the yellow crystals.
+  diamond: [
+    '....CC....',
+    '...CWWC...',
+    '..CWWCCC..',
+    '.CWWCCCCC.',
+    'CWWCCCCCCC',
+    'CCCCCCCCDC',
+    '.CCCCCDDC.',
+    '..CCCDDC..',
+    '...CDDC...',
+    '....CC....',
+  ],
   // 16 x 16. The ship you fly.
   ship: [
     '.......WW.......',
